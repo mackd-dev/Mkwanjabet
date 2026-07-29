@@ -1,6 +1,16 @@
-# MkwanjaBet V11 — Separated Production Architecture
+# MkwanjaBet V13 — Sportsbook Experience Foundation
 
-This workspace contains:
+This workspace contains a separated production architecture plus the V13 sportsbook user experience:
+
+- Responsive sportsbook match centre
+- Pre-match and live event tabs
+- Desktop and mobile betslip
+- Accumulator calculations and quick stakes
+- Booking-code interface
+- Jackpot, promotions, live, my-bets and wallet route foundations
+- Responsible-gaming surfaces
+
+Core workspace:
 
 - `frontend/` — Next.js user-facing application
 - `api/` — dedicated NestJS REST API
