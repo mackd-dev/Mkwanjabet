@@ -1,0 +1,1 @@
+import { Controller, Get, Param } from "@nestjs/common"; import { PicksService } from "./picks.service"; @Controller("picks") export class PicksController{constructor(private s:PicksService){} @Get("today")today(){return this.s.today()} @Get(":slug")one(@Param("slug")slug:string){return this.s.one(slug)}}

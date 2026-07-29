@@ -1,0 +1,3 @@
+import { Injectable, NotFoundException } from "@nestjs/common"; import { PrismaService } from "../../prisma/prisma.service";
+const include={match:{include:{league:true,homeTeam:true,awayTeam:true}},factors:{orderBy:{sortOrder:"asc" as const}},alternatives:true};
+@Injectable() export class PicksService { constructor(private db:PrismaService){} async today(){ const a=new Date();a.setHours(0,0,0,0);const b=new Date(a);b.setDate(b.getDate()+1);return this.db.pick.findMany({where:{status:"PUBLISHED",match:{kickoffAt:{gte:a,lt:b}}},include,orderBy:[{featured:"desc"},{confidence:"desc"}]}); } async one(slug:string){const p=await this.db.pick.findUnique({where:{slug},include});if(!p)throw new NotFoundException("Pick not found");return p;} }

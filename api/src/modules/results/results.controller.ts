@@ -1,0 +1,1 @@
+import { Controller, Get } from "@nestjs/common"; import { PrismaService } from "../../prisma/prisma.service"; @Controller("results") export class ResultsController{constructor(private db:PrismaService){} @Get() list(){return this.db.pick.findMany({where:{status:"SETTLED"},include:{match:{include:{league:true,homeTeam:true,awayTeam:true}}},orderBy:{settledAt:"desc"},take:100})}}

@@ -1,0 +1,1 @@
+import { Controller, Get } from "@nestjs/common"; import { PrismaService } from "../../prisma/prisma.service"; @Controller("plans") export class PlansController{constructor(private db:PrismaService){} @Get() list(){return this.db.plan.findMany({where:{active:true},orderBy:{sortOrder:"asc"}})}}

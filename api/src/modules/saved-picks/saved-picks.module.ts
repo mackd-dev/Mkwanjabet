@@ -1,0 +1,1 @@
+import { Module } from "@nestjs/common"; import { SavedPicksController } from "./saved-picks.controller"; @Module({controllers:[SavedPicksController]}) export class SavedPicksModule {}

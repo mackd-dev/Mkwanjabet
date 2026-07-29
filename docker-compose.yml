@@ -1,21 +1,54 @@
 services:
-  postgres:
+  mkwanjabet-postgres:
     image: postgres:16-alpine
-    container_name: primeodds-postgres
+    container_name: mkwanjabet-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: primeodds
-      POSTGRES_USER: primeodds
-      POSTGRES_PASSWORD: primeodds_dev_password
-    ports:
-      - "5434:5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - primeodds_postgres_data:/var/lib/postgresql/data
+      - mkwanjabet_postgres_data:/var/lib/postgresql/data
+    networks: [mkwanjabet-internal]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U primeodds -d primeodds"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
       timeout: 5s
       retries: 10
 
+  mkwanjabet-api:
+    build: ./api
+    container_name: mkwanjabet-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@mkwanjabet-postgres:5432/${POSTGRES_DB}
+      PORT: 4010
+    depends_on:
+      mkwanjabet-postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4010:4010"
+    networks: [mkwanjabet-internal]
+
+  mkwanjabet-web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    container_name: mkwanjabet-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    depends_on: [mkwanjabet-api]
+    ports:
+      - "127.0.0.1:3010:3000"
+    networks: [mkwanjabet-internal]
+
+networks:
+  mkwanjabet-internal:
+    name: mkwanjabet-internal
+    internal: false
 volumes:
-  primeodds_postgres_data:
+  mkwanjabet_postgres_data:
+    name: mkwanjabet_postgres_data
