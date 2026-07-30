@@ -30,6 +30,12 @@ export class BookingCodesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get("my-bets")
+  myBets(@CurrentUser() user: { id: string }) {
+    return this.bookingCodes.myBets(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post("place")
   place(@CurrentUser() user: { id: string }, @Body() dto: PlaceBetDto) {
     return this.bookingCodes.placeBet(user.id, dto);
