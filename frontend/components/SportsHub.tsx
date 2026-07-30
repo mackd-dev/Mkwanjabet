@@ -4,12 +4,23 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../lib/api-client";
 
-type Market = { label: string; odds: number };
+type Market = { id: string; outcomeId: string; label: string; name: string; odds: number };
 type Event = {
   id: string; sport: string; country: string; league: string; time: string; minute?: string;
   home: string; away: string; score?: string; markets: Market[]; more: number; live?: boolean;
 };
-type Selection = { id: string; eventId: string; match: string; market: string; pick: string; odds: number };
+type Selection = {
+  id: string;
+  eventId: string;
+  sport: string;
+  league: string;
+  match: string;
+  marketId: string;
+  market: string;
+  outcomeId: string;
+  pick: string;
+  odds: number;
+};
 type ApiOutcome = { id: string; key: string; name: string; currentOdds: string | number | null };
 type ApiMarket = { id: string; key: string; name: string; outcomes: ApiOutcome[] };
 type ApiEvent = {
@@ -20,12 +31,12 @@ type ApiEvent = {
 };
 
 const fallbackEvents: Event[] = [
-  {id:"ars-che",sport:"Football",country:"England",league:"Premier League",time:"20:00",home:"Arsenal",away:"Chelsea",markets:[{label:"1",odds:1.84},{label:"X",odds:3.55},{label:"2",odds:4.40}],more:96},
-  {id:"bar-atm",sport:"Football",country:"Spain",league:"La Liga",time:"22:00",home:"Barcelona",away:"Atlético Madrid",markets:[{label:"1",odds:1.72},{label:"X",odds:3.90},{label:"2",odds:4.95}],more:104},
-  {id:"int-juv",sport:"Football",country:"Italy",league:"Serie A",time:"21:45",home:"Inter Milan",away:"Juventus",markets:[{label:"1",odds:2.02},{label:"X",odds:3.25},{label:"2",odds:3.85}],more:88},
-  {id:"bay-bvb",sport:"Football",country:"Germany",league:"Bundesliga",time:"19:30",home:"Bayern Munich",away:"Dortmund",markets:[{label:"1",odds:1.58},{label:"X",odds:4.30},{label:"2",odds:5.20}],more:91},
-  {id:"liv-new",sport:"Football",country:"England",league:"Premier League",time:"LIVE",minute:"63'",home:"Liverpool",away:"Newcastle",score:"2 - 1",markets:[{label:"1",odds:1.31},{label:"X",odds:4.80},{label:"2",odds:12.0}],more:54,live:true},
-  {id:"lal-bos",sport:"Basketball",country:"USA",league:"NBA",time:"LIVE",minute:"Q3 06:14",home:"LA Lakers",away:"Boston Celtics",score:"71 - 68",markets:[{label:"1",odds:1.76},{label:"2",odds:2.08},{label:"O 219.5",odds:1.91}],more:38,live:true},
+  {id:"ars-che",sport:"Football",country:"England",league:"Premier League",time:"20:00",home:"Arsenal",away:"Chelsea",markets:[{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-home",label:"1",name:"Arsenal",odds:1.84},{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-draw",label:"X",name:"Draw",odds:3.55},{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-away",label:"2",name:"Chelsea",odds:4.40}],more:96},
+  {id:"bar-atm",sport:"Football",country:"Spain",league:"La Liga",time:"22:00",home:"Barcelona",away:"Atlético Madrid",markets:[{id:"demo-bar-atm-match-result",outcomeId:"demo-bar-atm-home",label:"1",name:"Barcelona",odds:1.72},{id:"demo-bar-atm-match-result",outcomeId:"demo-bar-atm-draw",label:"X",name:"Draw",odds:3.90},{id:"demo-bar-atm-match-result",outcomeId:"demo-bar-atm-away",label:"2",name:"Atletico Madrid",odds:4.95}],more:104},
+  {id:"int-juv",sport:"Football",country:"Italy",league:"Serie A",time:"21:45",home:"Inter Milan",away:"Juventus",markets:[{id:"demo-int-juv-match-result",outcomeId:"demo-int-juv-home",label:"1",name:"Inter Milan",odds:2.02},{id:"demo-int-juv-match-result",outcomeId:"demo-int-juv-draw",label:"X",name:"Draw",odds:3.25},{id:"demo-int-juv-match-result",outcomeId:"demo-int-juv-away",label:"2",name:"Juventus",odds:3.85}],more:88},
+  {id:"bay-bvb",sport:"Football",country:"Germany",league:"Bundesliga",time:"19:30",home:"Bayern Munich",away:"Dortmund",markets:[{id:"demo-bay-bvb-match-result",outcomeId:"demo-bay-bvb-home",label:"1",name:"Bayern Munich",odds:1.58},{id:"demo-bay-bvb-match-result",outcomeId:"demo-bay-bvb-draw",label:"X",name:"Draw",odds:4.30},{id:"demo-bay-bvb-match-result",outcomeId:"demo-bay-bvb-away",label:"2",name:"Dortmund",odds:5.20}],more:91},
+  {id:"liv-new",sport:"Football",country:"England",league:"Premier League",time:"LIVE",minute:"63'",home:"Liverpool",away:"Newcastle",score:"2 - 1",markets:[{id:"demo-liv-new-match-result",outcomeId:"demo-liv-new-home",label:"1",name:"Liverpool",odds:1.31},{id:"demo-liv-new-match-result",outcomeId:"demo-liv-new-draw",label:"X",name:"Draw",odds:4.80},{id:"demo-liv-new-match-result",outcomeId:"demo-liv-new-away",label:"2",name:"Newcastle",odds:12.0}],more:54,live:true},
+  {id:"lal-bos",sport:"Basketball",country:"USA",league:"NBA",time:"LIVE",minute:"Q3 06:14",home:"LA Lakers",away:"Boston Celtics",score:"71 - 68",markets:[{id:"demo-lal-bos-moneyline",outcomeId:"demo-lal-bos-home",label:"1",name:"LA Lakers",odds:1.76},{id:"demo-lal-bos-moneyline",outcomeId:"demo-lal-bos-away",label:"2",name:"Boston Celtics",odds:2.08},{id:"demo-lal-bos-total",outcomeId:"demo-lal-bos-over",label:"O 219.5",name:"Over 219.5",odds:1.91}],more:38,live:true},
 ];
 
 const sports = [
@@ -39,7 +50,10 @@ function formatTime(value: string) {
 function toEvent(event: ApiEvent): Event {
   const matchWinner = event.markets.find(m => m.key === "match-winner") ?? event.markets[0];
   const markets = (matchWinner?.outcomes ?? []).slice(0, 3).map(outcome => ({
+    id: matchWinner.id,
+    outcomeId: outcome.id,
     label: outcome.key === "home" ? "1" : outcome.key === "draw" ? "X" : outcome.key === "away" ? "2" : outcome.name,
+    name: outcome.name,
     odds: Number(outcome.currentOdds ?? 0),
   })).filter(m => m.odds > 0);
   const live = event.status === "LIVE";
@@ -98,8 +112,8 @@ export default function SportsHub(){
 
 
   const apiSelections=()=>slip.map(s=>({
-    eventId:s.eventId,sport:"Football",league:events.find(e=>e.id===s.eventId)?.league??"Unknown",
-    marketId:"match-result",outcomeId:s.pick,matchName:s.match,marketName:s.market,selection:s.pick,odds:s.odds
+    eventId:s.eventId,sport:s.sport,league:s.league,
+    marketId:s.marketId,outcomeId:s.outcomeId,matchName:s.match,marketName:s.market,selection:s.pick,odds:s.odds
   }));
 
   const saveBooking=async()=>{
@@ -111,14 +125,14 @@ export default function SportsHub(){
   const loadBooking=async()=>{
     if(!bookingInput.trim())return;
     setSlipBusy(true);setSlipNotice("");
-    try{const r=await apiRequest<{code:string;stakeTzs?:number;selections:Array<{eventId:string;matchName:string;marketName:string;selection:string;odds:number}>}>(`/betting/booking/${bookingInput.trim()}`);setSlip(r.selections.map((x,i)=>({id:`${x.eventId}-${x.selection}-${i}`,eventId:x.eventId,match:x.matchName,market:x.marketName,pick:x.selection,odds:Number(x.odds)})));if(r.stakeTzs)setStake(r.stakeTzs);setBookingCode(r.code);setSlipNotice(`Booking ${r.code} restored`)}
+    try{const r=await apiRequest<{code:string;stakeTzs?:number;selections:Array<{eventId:string;sport?:string;league?:string;marketId?:string;outcomeId?:string;matchName:string;marketName:string;selection:string;odds:number}>}>(`/betting/booking/${bookingInput.trim()}`);setSlip(r.selections.map((x,i)=>({id:`${x.eventId}-${x.outcomeId ?? x.selection}-${i}`,eventId:x.eventId,sport:x.sport ?? "Football",league:x.league ?? "Unknown",match:x.matchName,marketId:x.marketId ?? "legacy-market",market:x.marketName,outcomeId:x.outcomeId ?? x.selection,pick:x.selection,odds:Number(x.odds)})));if(r.stakeTzs)setStake(r.stakeTzs);setBookingCode(r.code);setSlipNotice(`Booking ${r.code} restored`)}
     catch{setSlipNotice("Booking code was not found or has expired.")}finally{setSlipBusy(false)}
   };
 
   const toggle=(e:Event,m:Market)=>{
-    const id=`${e.id}-${m.label}`;
-    const next={id,eventId:e.id,match:`${e.home} vs ${e.away}`,market:"Match result",pick:m.label,odds:m.odds};
-    setSlip(x=>x.some(s=>s.id===id)?x.filter(s=>s.id!==id):[...x.filter(s=>s.eventId!==e.id),next]);
+    const id=`${e.id}-${m.outcomeId}`;
+    const next={id,eventId:e.id,sport:e.sport,league:e.league,match:`${e.home} vs ${e.away}`,marketId:m.id,market:"Match result",outcomeId:m.outcomeId,pick:m.name,odds:m.odds};
+    setSlip(x=>x.some(s=>s.id===id)?x.filter(s=>s.id!==id):[...x.filter(s=>s.eventId!==e.id&&s.marketId!==m.id),next]);
   };
 
   const BetSlip = ({mobile=false}:{mobile?:boolean}) => <aside className={`betslip ${mobile?"mobile-slip-panel":""}`}>
@@ -167,7 +181,7 @@ export default function SportsHub(){
           {visible.length===0&&<div className="no-events"><b>No events found</b><span>Try another sport, tab or search.</span></div>}
           {visible.map(e=><article className="event-card" key={e.id}>
             <div className="event-meta"><small><b>{e.country}</b> · {e.league}</small><div><button>☆</button><time>{e.live?<><i/> LIVE {e.minute}</>:e.time}</time></div></div>
-            <div className="event-body"><Link className="teams" href={`/sports/match/${e.id}`}><div><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"}</small></Link><div className="odds-grid">{e.markets.map(m=>{const id=`${e.id}-${m.label}`;return <button key={m.label} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>})}<button className="more">+{e.more}</button></div></div>
+            <div className="event-body"><Link className="teams" href={`/sports/match/${e.id}`}><div><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"}</small></Link><div className="odds-grid">{e.markets.map(m=>{const id=`${e.id}-${m.outcomeId}`;return <button key={m.outcomeId} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>})}<button className="more">+{e.more}</button></div></div>
             <div className="event-footer"><button>▥ Stats</button><button>◉ Live tracker</button><span>{e.more} markets available</span></div>
           </article>)}
         </div>

@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../lib/api-client";
 
-type Odd = { id: string; label: string; value: number };
+type Odd = { id: string; marketId: string; outcomeId: string; label: string; value: number };
 type Group = { title: string; badge?: string; odds: Odd[] };
-type Pick = Odd & { group: string };
+type Pick = Odd & { group: string; eventId: string; match: string; sport: string; league: string };
 type ApiOutcome = { id: string; key: string; name: string; currentOdds: string | number | null; status: string };
 type ApiMarket = { id: string; key: string; name: string; status: string; outcomes: ApiOutcome[] };
 type ApiEvent = {
@@ -17,13 +17,13 @@ type ApiEvent = {
 };
 
 const groups: Group[] = [
-  { title: "Match Result", badge: "POPULAR", odds: [{id:"mr-1",label:"Arsenal",value:1.84},{id:"mr-x",label:"Draw",value:3.55},{id:"mr-2",label:"Chelsea",value:4.40}] },
-  { title: "Double Chance", odds: [{id:"dc-1x",label:"Arsenal or Draw",value:1.19},{id:"dc-12",label:"Arsenal or Chelsea",value:1.27},{id:"dc-x2",label:"Draw or Chelsea",value:1.91}] },
-  { title: "Total Goals", odds: [{id:"tg-o15",label:"Over 1.5",value:1.27},{id:"tg-u15",label:"Under 1.5",value:3.70},{id:"tg-o25",label:"Over 2.5",value:1.82},{id:"tg-u25",label:"Under 2.5",value:1.96},{id:"tg-o35",label:"Over 3.5",value:2.76},{id:"tg-u35",label:"Under 3.5",value:1.43}] },
-  { title: "Both Teams To Score", odds: [{id:"btts-y",label:"Yes",value:1.70},{id:"btts-n",label:"No",value:2.06}] },
-  { title: "First Half", odds: [{id:"fh-1",label:"Arsenal",value:2.34},{id:"fh-x",label:"Draw",value:2.18},{id:"fh-2",label:"Chelsea",value:4.65}] },
-  { title: "Corners", odds: [{id:"co-o85",label:"Over 8.5",value:1.74},{id:"co-u85",label:"Under 8.5",value:2.03},{id:"co-home",label:"Arsenal most corners",value:1.58}] },
-  { title: "Correct Score", odds: [{id:"cs-10",label:"1–0",value:7.20},{id:"cs-20",label:"2–0",value:8.80},{id:"cs-21",label:"2–1",value:8.10},{id:"cs-11",label:"1–1",value:6.90},{id:"cs-12",label:"1–2",value:13.0},{id:"cs-22",label:"2–2",value:13.5}] },
+  { title: "Match Result", badge: "POPULAR", odds: [{id:"demo-mr-1",marketId:"demo-match-result",outcomeId:"demo-mr-1",label:"Arsenal",value:1.84},{id:"demo-mr-x",marketId:"demo-match-result",outcomeId:"demo-mr-x",label:"Draw",value:3.55},{id:"demo-mr-2",marketId:"demo-match-result",outcomeId:"demo-mr-2",label:"Chelsea",value:4.40}] },
+  { title: "Double Chance", odds: [{id:"demo-dc-1x",marketId:"demo-double-chance",outcomeId:"demo-dc-1x",label:"Arsenal or Draw",value:1.19},{id:"demo-dc-12",marketId:"demo-double-chance",outcomeId:"demo-dc-12",label:"Arsenal or Chelsea",value:1.27},{id:"demo-dc-x2",marketId:"demo-double-chance",outcomeId:"demo-dc-x2",label:"Draw or Chelsea",value:1.91}] },
+  { title: "Total Goals", odds: [{id:"demo-tg-o15",marketId:"demo-total-goals",outcomeId:"demo-tg-o15",label:"Over 1.5",value:1.27},{id:"demo-tg-u15",marketId:"demo-total-goals",outcomeId:"demo-tg-u15",label:"Under 1.5",value:3.70},{id:"demo-tg-o25",marketId:"demo-total-goals",outcomeId:"demo-tg-o25",label:"Over 2.5",value:1.82},{id:"demo-tg-u25",marketId:"demo-total-goals",outcomeId:"demo-tg-u25",label:"Under 2.5",value:1.96},{id:"demo-tg-o35",marketId:"demo-total-goals",outcomeId:"demo-tg-o35",label:"Over 3.5",value:2.76},{id:"demo-tg-u35",marketId:"demo-total-goals",outcomeId:"demo-tg-u35",label:"Under 3.5",value:1.43}] },
+  { title: "Both Teams To Score", odds: [{id:"demo-btts-y",marketId:"demo-btts",outcomeId:"demo-btts-y",label:"Yes",value:1.70},{id:"demo-btts-n",marketId:"demo-btts",outcomeId:"demo-btts-n",label:"No",value:2.06}] },
+  { title: "First Half", odds: [{id:"demo-fh-1",marketId:"demo-first-half",outcomeId:"demo-fh-1",label:"Arsenal",value:2.34},{id:"demo-fh-x",marketId:"demo-first-half",outcomeId:"demo-fh-x",label:"Draw",value:2.18},{id:"demo-fh-2",marketId:"demo-first-half",outcomeId:"demo-fh-2",label:"Chelsea",value:4.65}] },
+  { title: "Corners", odds: [{id:"demo-co-o85",marketId:"demo-corners",outcomeId:"demo-co-o85",label:"Over 8.5",value:1.74},{id:"demo-co-u85",marketId:"demo-corners",outcomeId:"demo-co-u85",label:"Under 8.5",value:2.03},{id:"demo-co-home",marketId:"demo-corners",outcomeId:"demo-co-home",label:"Arsenal most corners",value:1.58}] },
+  { title: "Correct Score", odds: [{id:"demo-cs-10",marketId:"demo-correct-score",outcomeId:"demo-cs-10",label:"1-0",value:7.20},{id:"demo-cs-20",marketId:"demo-correct-score",outcomeId:"demo-cs-20",label:"2-0",value:8.80},{id:"demo-cs-21",marketId:"demo-correct-score",outcomeId:"demo-cs-21",label:"2-1",value:8.10},{id:"demo-cs-11",marketId:"demo-correct-score",outcomeId:"demo-cs-11",label:"1-1",value:6.90},{id:"demo-cs-12",marketId:"demo-correct-score",outcomeId:"demo-cs-12",label:"1-2",value:13.0},{id:"demo-cs-22",marketId:"demo-correct-score",outcomeId:"demo-cs-22",label:"2-2",value:13.5}] },
 ];
 
 function shortName(name: string) {
@@ -40,7 +40,7 @@ function toGroups(markets: ApiMarket[]): Group[] {
     badge: index === 0 ? "POPULAR" : market.status !== "OPEN" ? market.status : undefined,
     odds: market.outcomes
       .filter(outcome => outcome.status === "ACTIVE" && Number(outcome.currentOdds ?? 0) > 0)
-      .map(outcome => ({ id: outcome.id, label: outcome.name, value: Number(outcome.currentOdds) })),
+      .map(outcome => ({ id: `${market.id}-${outcome.id}`, marketId: market.id, outcomeId: outcome.id, label: outcome.name, value: Number(outcome.currentOdds) })),
   })).filter(group => group.odds.length);
 }
 
@@ -64,7 +64,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
   const togglePick = (group: string, odd: Odd) => {
     setPicks(current => current.some(p => p.id === odd.id)
       ? current.filter(p => p.id !== odd.id)
-      : [...current.filter(p => p.group !== group), { ...odd, group }]);
+      : [...current.filter(p => p.marketId !== odd.marketId), { ...odd, group, eventId: event?.slug ?? matchId, match: `${home} vs ${away}`, sport: event?.sport?.name ?? "Football", league: competition }]);
   };
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
         {tab === "Markets" ? <>
           <div className="mc-market-tools"><div>{["All","Popular","Goals","Corners","Cards","Players"].map(x=><button className={category===x?"active":""} onClick={()=>setCategory(x)} key={x}>{x}</button>)}</div><label>⌕ <input placeholder="Search 147 markets"/></label></div>
           {notice&&<div className="sports-data-notice">{notice}</div>}
-          <div className="mc-boost"><span>BOOSTED</span><div><b>{home} to win & over 1.5 goals</b><small>Display-only preview</small></div><button onClick={()=>togglePick("Boosted",{id:"boost",label:`${home} + O1.5`,value:2.45})}>2.45</button></div>
+          <div className="mc-boost"><span>BOOSTED</span><div><b>{home} to win & over 1.5 goals</b><small>Display-only preview</small></div><button onClick={()=>togglePick("Boosted",{id:"boost",marketId:"boosted-preview",outcomeId:"boosted-preview-home-over-15",label:`${home} + O1.5`,value:2.45})}>2.45</button></div>
           <div className="mc-markets">{marketGroups.map(group=><article key={group.title}>
             <button className="mc-market-head" onClick={()=>setOpen(v=>({...v,[group.title]:!v[group.title]}))}><span>{group.title}{group.badge&&<i>{group.badge}</i>}</span><b>{open[group.title]?"＋":"−"}</b></button>
             {!open[group.title]&&<div className={`mc-odds ${group.odds.length===2?"two":""}`}>{group.odds.map(odd=><button className={picks.some(p=>p.id===odd.id)?"selected":""} onClick={()=>togglePick(group.title,odd)} key={odd.id}><span>{odd.label}</span><b>{odd.value.toFixed(2)}</b></button>)}</div>}
