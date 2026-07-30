@@ -25,3 +25,8 @@ export class ValidateBetPreviewDto extends SaveBookingCodeDto {
   @IsInt() @Min(1)
   declare stakeTzs: number;
 }
+
+export class PlaceBetDto extends ValidateBetPreviewDto {
+  @IsOptional() @IsString()
+  bookingCode?: string;
+}

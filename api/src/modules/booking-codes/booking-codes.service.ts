@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { BetStatus, Prisma } from "@prisma/client";
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
-import { BookingSelectionDto, SaveBookingCodeDto, ValidateBetPreviewDto } from "./dto/booking-code.dto";
+import { BookingSelectionDto, PlaceBetDto, SaveBookingCodeDto, ValidateBetPreviewDto } from "./dto/booking-code.dto";
 
 @Injectable()
 export class BookingCodesService {
@@ -10,6 +10,10 @@ export class BookingCodesService {
 
   private code() {
     return `MKB-${randomBytes(3).toString("hex").toUpperCase()}-${randomBytes(2).toString("hex").toUpperCase()}`;
+  }
+
+  private ticketCode() {
+    return `MB-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString("hex").toUpperCase()}`;
   }
 
   private assertSelections(selections: BookingSelectionDto[]) {
@@ -136,6 +140,110 @@ export class BookingCodesService {
       } : null,
       message: walletErrors.length > preview.errors.length ? "Ticket is valid structurally, but wallet is not ready." : preview.message,
     };
+  }
+
+  async placeBet(userId: string, dto: PlaceBetDto) {
+    const validation = await this.validateForUser(userId, dto);
+    if (!validation.valid) throw new BadRequestException({ message: "Bet validation failed", errors: validation.errors });
+
+    return this.db.$transaction(async tx => {
+      const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      const locked = await tx.wallet.updateMany({
+        where: { id: wallet.id, version: wallet.version, availableBalanceTzs: { gte: dto.stakeTzs } },
+        data: {
+          availableBalanceTzs: { decrement: dto.stakeTzs },
+          lockedBalanceTzs: { increment: dto.stakeTzs },
+          version: { increment: 1 },
+        },
+      });
+      if (locked.count !== 1) throw new BadRequestException("Wallet balance changed. Please try again");
+
+      const ticketCode = this.ticketCode();
+      const bet = await tx.bet.create({
+        data: {
+          userId,
+          ticketCode,
+          bookingCode: dto.bookingCode?.toUpperCase(),
+          status: BetStatus.ACCEPTED,
+          stakeTzs: dto.stakeTzs,
+          totalOdds: validation.totalOdds,
+          potentialReturnTzs: validation.potentialReturnTzs,
+          acceptedAt: new Date(),
+          selections: {
+            create: dto.selections.map(selection => ({
+              externalEventId: selection.eventId,
+              sport: selection.sport,
+              league: selection.league,
+              marketId: selection.marketId,
+              outcomeId: selection.outcomeId,
+              matchName: selection.matchName,
+              marketName: selection.marketName,
+              selection: selection.selection,
+              odds: selection.odds,
+            })),
+          },
+          history: {
+            create: [
+              { toStatus: BetStatus.PLACED, actorId: userId, reason: "Ticket submitted" },
+              { fromStatus: BetStatus.PLACED, toStatus: BetStatus.ACCEPTED, actorId: userId, reason: "Stake locked" },
+            ],
+          },
+        },
+        include: { selections: true, history: true },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          type: "BET_STAKE",
+          status: "COMPLETED",
+          amountTzs: -dto.stakeTzs,
+          balanceAfterTzs: wallet.availableBalanceTzs - dto.stakeTzs,
+          reference: `STAKE-${ticketCode}`,
+          description: `Stake locked for ${ticketCode}`,
+          completedAt: new Date(),
+          metadata: { betId: bet.id, ticketCode },
+        },
+      });
+
+      for (const selection of dto.selections) {
+        await tx.exposure.upsert({
+          where: { scope_eventId_marketId_outcomeId: { scope: "OUTCOME", eventId: selection.eventId, marketId: selection.marketId, outcomeId: selection.outcomeId } },
+          create: {
+            scope: "OUTCOME",
+            eventId: selection.eventId,
+            marketId: selection.marketId,
+            outcomeId: selection.outcomeId,
+            stakeTzs: dto.stakeTzs,
+            potentialPayoutTzs: validation.potentialReturnTzs,
+            liabilityTzs: Math.max(0, validation.potentialReturnTzs - dto.stakeTzs),
+            ticketCount: 1,
+          },
+          update: {
+            stakeTzs: { increment: dto.stakeTzs },
+            potentialPayoutTzs: { increment: validation.potentialReturnTzs },
+            liabilityTzs: { increment: Math.max(0, validation.potentialReturnTzs - dto.stakeTzs) },
+            ticketCount: { increment: 1 },
+          },
+        });
+      }
+
+      if (dto.bookingCode) {
+        await tx.bookingCode.updateMany({
+          where: { code: dto.bookingCode.toUpperCase(), status: "ACTIVE" },
+          data: { status: "USED", usedAt: new Date() },
+        });
+      }
+
+      return {
+        ...bet,
+        totalOdds: Number(bet.totalOdds),
+        wallet: {
+          availableBalanceTzs: wallet.availableBalanceTzs - dto.stakeTzs,
+          lockedBalanceTzs: wallet.lockedBalanceTzs + dto.stakeTzs,
+        },
+      };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   private toResponse(booking: { code: string; stakeTzs: number | null; selections: Prisma.JsonValue; expiresAt: Date; createdAt: Date }) {
