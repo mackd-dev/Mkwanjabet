@@ -1,0 +1,2 @@
+import { Module } from "@nestjs/common"; import { BettingModule } from "../betting/betting.module"; import { AdminController } from "./admin.controller";
+@Module({imports:[BettingModule],controllers:[AdminController]}) export class AdminModule {}

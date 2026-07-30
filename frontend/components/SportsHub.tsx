@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { apiRequest } from "../lib/api-client";
+import { ApiError, apiRequest } from "../lib/api-client";
+import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
 
 type Market = { id: string; outcomeId: string; label: string; name: string; odds: number };
 type Event = {
@@ -30,16 +31,21 @@ type ApiEvent = {
   markets: ApiMarket[];
 };
 type ValidationPreview = { status: "READY"|"WARNING"|"INVALID"; valid: boolean; errors: string[]; warnings: string[]; totalOdds: number; potentialReturnTzs: number; message: string };
-
-const fallbackEvents: Event[] = [
-  {id:"ars-che",sport:"Football",country:"England",league:"Premier League",time:"20:00",home:"Arsenal",away:"Chelsea",markets:[{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-home",label:"1",name:"Arsenal",odds:1.84},{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-draw",label:"X",name:"Draw",odds:3.55},{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-away",label:"2",name:"Chelsea",odds:4.40}],more:96},
-  {id:"bar-atm",sport:"Football",country:"Spain",league:"La Liga",time:"22:00",home:"Barcelona",away:"Atlético Madrid",markets:[{id:"demo-bar-atm-match-result",outcomeId:"demo-bar-atm-home",label:"1",name:"Barcelona",odds:1.72},{id:"demo-bar-atm-match-result",outcomeId:"demo-bar-atm-draw",label:"X",name:"Draw",odds:3.90},{id:"demo-bar-atm-match-result",outcomeId:"demo-bar-atm-away",label:"2",name:"Atletico Madrid",odds:4.95}],more:104},
-  {id:"int-juv",sport:"Football",country:"Italy",league:"Serie A",time:"21:45",home:"Inter Milan",away:"Juventus",markets:[{id:"demo-int-juv-match-result",outcomeId:"demo-int-juv-home",label:"1",name:"Inter Milan",odds:2.02},{id:"demo-int-juv-match-result",outcomeId:"demo-int-juv-draw",label:"X",name:"Draw",odds:3.25},{id:"demo-int-juv-match-result",outcomeId:"demo-int-juv-away",label:"2",name:"Juventus",odds:3.85}],more:88},
-  {id:"bay-bvb",sport:"Football",country:"Germany",league:"Bundesliga",time:"19:30",home:"Bayern Munich",away:"Dortmund",markets:[{id:"demo-bay-bvb-match-result",outcomeId:"demo-bay-bvb-home",label:"1",name:"Bayern Munich",odds:1.58},{id:"demo-bay-bvb-match-result",outcomeId:"demo-bay-bvb-draw",label:"X",name:"Draw",odds:4.30},{id:"demo-bay-bvb-match-result",outcomeId:"demo-bay-bvb-away",label:"2",name:"Dortmund",odds:5.20}],more:91},
-  {id:"liv-new",sport:"Football",country:"England",league:"Premier League",time:"LIVE",minute:"63'",home:"Liverpool",away:"Newcastle",score:"2 - 1",markets:[{id:"demo-liv-new-match-result",outcomeId:"demo-liv-new-home",label:"1",name:"Liverpool",odds:1.31},{id:"demo-liv-new-match-result",outcomeId:"demo-liv-new-draw",label:"X",name:"Draw",odds:4.80},{id:"demo-liv-new-match-result",outcomeId:"demo-liv-new-away",label:"2",name:"Newcastle",odds:12.0}],more:54,live:true},
-  {id:"lal-bos",sport:"Basketball",country:"USA",league:"NBA",time:"LIVE",minute:"Q3 06:14",home:"LA Lakers",away:"Boston Celtics",score:"71 - 68",markets:[{id:"demo-lal-bos-moneyline",outcomeId:"demo-lal-bos-home",label:"1",name:"LA Lakers",odds:1.76},{id:"demo-lal-bos-moneyline",outcomeId:"demo-lal-bos-away",label:"2",name:"Boston Celtics",odds:2.08},{id:"demo-lal-bos-total",outcomeId:"demo-lal-bos-over",label:"O 219.5",name:"Over 219.5",odds:1.91}],more:38,live:true},
-];
-
+type Wallet = { availableBalanceTzs: number };
+type PlacedBet = { id: string; ticketCode: string; potentialReturnTzs: number };
+function apiMessage(error: unknown) {
+  if (error instanceof ApiError && error.payload && typeof error.payload === "object") {
+    const payload = error.payload as { message?: unknown; errors?: unknown };
+    if (Array.isArray(payload.errors)) return payload.errors.join(". ");
+    if (typeof payload.message === "string") return payload.message;
+    if (payload.message && typeof payload.message === "object") {
+      const nested = payload.message as { message?: unknown; errors?: unknown };
+      if (Array.isArray(nested.errors)) return nested.errors.join(". ");
+      if (typeof nested.message === "string") return nested.message;
+    }
+  }
+  return "Request could not be completed. Please try again.";
+}
 const sports = [
   ["Football","⚽",42],["Basketball","🏀",18],["Tennis","🎾",26],["Volleyball","🏐",12],["Ice Hockey","◉",8],["Table Tennis","◌",31]
 ] as const;
@@ -78,7 +84,7 @@ export default function SportsHub(){
   const [tab,setTab]=useState<"prematch"|"live">("prematch");
   const [sport,setSport]=useState("Football");
   const [query,setQuery]=useState("");
-  const [events,setEvents]=useState<Event[]>(fallbackEvents);
+  const [events,setEvents]=useState<Event[]>([]);
   const [eventsNotice,setEventsNotice]=useState("");
   const [slip,setSlip]=useState<Selection[]>([]);
   const [stake,setStake]=useState(5000);
@@ -89,6 +95,8 @@ export default function SportsHub(){
   const [slipNotice,setSlipNotice]=useState("");
   const [slipBusy,setSlipBusy]=useState(false);
   const [validation,setValidation]=useState<ValidationPreview|null>(null);
+  const [user,setUser]=useState<SessionUser|null>(null);
+  const [wallet,setWallet]=useState<Wallet|null>(null);
 
   useEffect(()=>{
     let mounted=true;
@@ -96,10 +104,20 @@ export default function SportsHub(){
       if(!mounted)return;
       const next=data.map(toEvent).filter(event=>event.markets.length);
       if(next.length){setEvents(next);setEventsNotice("");}
-      else setEventsNotice("No sportsbook events have been seeded yet.");
+      else setEventsNotice("No live sportsbook events are available right now.");
     }).catch(()=>{
-      if(mounted)setEventsNotice("Showing demo events while the sportsbook API is unavailable.");
+      if(mounted){setEvents([]);setEventsNotice("Sportsbook events are temporarily unavailable.");}
     });
+    return()=>{mounted=false};
+  },[]);
+  useEffect(()=>{
+    let mounted=true;
+    getCurrentUser().then(async current=>{
+      if(!mounted)return;
+      setUser(current);
+      const balance=await authenticatedApiRequest<Wallet>("/wallet/me");
+      if(mounted)setWallet(balance);
+    }).catch(()=>{if(mounted){setUser(null);setWallet(null);}});
     return()=>{mounted=false};
   },[]);
 
@@ -126,9 +144,23 @@ export default function SportsHub(){
   };
   const validateTicket=async()=>{
     if(!slip.length)return;
+    if(!user){setSlipNotice("Log in to validate this wallet-backed ticket.");return;}
     setSlipBusy(true);setSlipNotice("");setValidation(null);
-    try{const r=await apiRequest<ValidationPreview>("/betting/validate-preview",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake})});setValidation(r);setSlipNotice(r.message)}
-    catch{setSlipNotice("Could not validate ticket. Make sure the API is running.")}finally{setSlipBusy(false)}
+    try{
+      const r=await authenticatedApiRequest<Omit<ValidationPreview,"status"|"warnings"|"message">>("/betting/validate",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake,bookingCode:bookingCode||undefined,acceptOddsChanges:oddsAccepted})});
+      const result:ValidationPreview={...r,status:r.valid?"READY":"INVALID",warnings:[],message:r.valid?"Ticket is ready to place.":r.errors.join(". ")};
+      setValidation(result);setSlipNotice(result.message);
+    } catch(error){setSlipNotice(apiMessage(error));}finally{setSlipBusy(false)}
+  };
+  const placeBet=async()=>{
+    if(!user){window.location.href=`/login?next=${encodeURIComponent("/sports")}`;return;}
+    if(!slip.length)return;
+    setSlipBusy(true);setSlipNotice("");
+    try{
+      const bet=await authenticatedApiRequest<PlacedBet>("/betting/place",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake,bookingCode:bookingCode||undefined,acceptOddsChanges:oddsAccepted})});
+      const balance=await authenticatedApiRequest<Wallet>("/wallet/me");
+      setWallet(balance);setSlip([]);setValidation(null);setBookingCode("");setBookingInput("");setSlipNotice(`Bet placed. Ticket ${bet.ticketCode}`);
+    } catch(error){setValidation(null);setSlipNotice(apiMessage(error));}finally{setSlipBusy(false)}
   };
   const loadBooking=async()=>{
     if(!bookingInput.trim())return;
@@ -156,8 +188,8 @@ export default function SportsHub(){
         <label className="odds-change"><input type="checkbox" checked={oddsAccepted} onChange={e=>setOddsAccepted(e.target.checked)}/> Accept odds changes</label>
         <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={validateTicket}>{slipBusy?"Working...":"Validate ticket"}</button>
         {validation&&<div className={`ticket-validation ${validation.status.toLowerCase()}`}><b>{validation.status}</b><span>{validation.message}</span>{[...validation.errors,...validation.warnings].slice(0,3).map(x=><small key={x}>{x}</small>)}</div>}
-        <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={saveBooking}>{slipBusy?"Working...":"Save booking code"}</button>{bookingCode&&<div className="saved-code"><span>Booking code</span><b>{bookingCode}</b><button onClick={()=>navigator.clipboard?.writeText(bookingCode)}>Copy</button></div>}<button className="place-bet-btn" disabled>{validation?.status==="READY"?"Wallet placement coming next":"Validate before placement"}</button>
-        <small>18+ · Play responsibly. Final wagering will be enabled after licensing and production integrations.</small>
+        <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={saveBooking}>{slipBusy?"Working...":"Save booking code"}</button>{bookingCode&&<div className="saved-code"><span>Booking code</span><b>{bookingCode}</b><button onClick={()=>navigator.clipboard?.writeText(bookingCode)}>Copy</button></div>}<button className="place-bet-btn" disabled={slipBusy||!slip.length} onClick={placeBet}>{slipBusy?"Working...":user?"Place bet":"Log in to place bet"}</button>
+        <small>18+ · Play responsibly. Stakes are deducted from your wallet when a ticket is accepted.</small>
       </div>
     </>}
   </aside>;
@@ -166,7 +198,7 @@ export default function SportsHub(){
     <header className="sports-topbar">
       <Link className="sports-brand" href="/"><span>M</span>Mkwanja<b>Bet</b></Link>
       <nav><Link className="active" href="/sports">Sports</Link><Link href="/live">Live</Link><Link href="/jackpot">Jackpots</Link><Link href="/promotions">Promotions</Link></nav>
-      <div className="sports-actions"><button className="wallet-preview"><small>Balance</small><b>TZS 0.00</b></button><Link href="/login">Log in</Link><Link className="sports-register" href="/register">Register</Link></div>
+      <div className="sports-actions"><Link className="wallet-preview" href={user?"/account":"/login?next=/sports"}><small>Balance</small><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></Link>{user?<Link className="sports-register" href="/account">My account</Link>:<><Link href="/login?next=/sports">Log in</Link><Link className="sports-register" href="/register">Register</Link></>}</div>
     </header>
     <div className="sports-mainnav">
       {["Sports","Live","Jackpots","Aviator","Livescore","Results","Promotions"].map((x,i)=><button key={x} className={i===0?"active":""}>{x}{x==="Live"&&<i/>}</button>)}
