@@ -73,16 +73,20 @@ export default function AuthPage({ mode }: Props) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    if (isLogin) {
+    if (isLogin || isRegister) {
       setBusy(true);
       const form = new FormData(event.currentTarget);
+      const phone = normalizeIdentifier(String(form.get("identifier") ?? ""));
+      const password = String(form.get("password") ?? "");
+      const firstName = String(form.get("firstName") ?? "").trim();
+      const lastName = String(form.get("lastName") ?? "").trim();
+      const email = String(form.get("email") ?? "").trim().toLowerCase();
       try {
-        const session = await apiRequest<LoginResponse>("/auth/login", {
+        const session = await apiRequest<LoginResponse>(isLogin ? "/auth/login" : "/auth/register", {
           method: "POST",
-          body: JSON.stringify({
-            identifier: normalizeIdentifier(String(form.get("identifier") ?? "")),
-            password: String(form.get("password") ?? ""),
-          }),
+          body: JSON.stringify(isLogin
+            ? { identifier: phone, password }
+            : { name: `${firstName} ${lastName}`.trim(), phone, ...(email ? { email } : {}), password }),
         });
         saveSession(session);
         setSubmitted(true);
@@ -138,8 +142,8 @@ export default function AuthPage({ mode }: Props) {
             <form onSubmit={handleSubmit} className="auth-form">
               {isRegister && (
                 <div className="auth-two-col">
-                  <label><span>Jina la kwanza</span><input required placeholder="Mfano: Asha" /></label>
-                  <label><span>Jina la mwisho</span><input required placeholder="Mfano: Salum" /></label>
+                  <label><span>Jina la kwanza</span><input required name="firstName" minLength={2} placeholder="Mfano: Asha" /></label>
+                  <label><span>Jina la mwisho</span><input required name="lastName" minLength={2} placeholder="Mfano: Salum" /></label>
                 </div>
               )}
 
@@ -150,7 +154,7 @@ export default function AuthPage({ mode }: Props) {
                 </label>
               )}
 
-              {isRegister && <label><span>Barua pepe <small>(si lazima)</small></span><input type="email" placeholder="jina@example.com" /></label>}
+              {isRegister && <label><span>Barua pepe <small>(si lazima)</small></span><input name="email" type="email" placeholder="jina@example.com" /></label>}
 
               {(isLogin || isRegister) && (
                 <label>
@@ -172,7 +176,7 @@ export default function AuthPage({ mode }: Props) {
                 </div>
               )}
 
-              <button className="btn btn-gold auth-submit" type="submit" disabled={busy}>{busy ? "Inaingia..." : page.submit} →</button>
+              <button className="btn btn-gold auth-submit" type="submit" disabled={busy}>{busy ? (isRegister ? "Inafungua akaunti..." : "Inaingia...") : page.submit} →</button>
               {error && <div className="auth-error" role="alert">{error}</div>}
               {message && <div className="auth-success">✓ {message}</div>}
             </form>
@@ -214,6 +218,7 @@ function getApiErrorMessage(caught: unknown) {
   }
   return "Imeshindikana kuingia. Hakikisha API inaendeshwa kisha jaribu tena.";
 }
+
 
 
 
