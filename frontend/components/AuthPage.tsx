@@ -90,7 +90,8 @@ export default function AuthPage({ mode }: Props) {
         });
         saveSession(session);
         setSubmitted(true);
-        router.push("/dashboard");
+        const requested = new URLSearchParams(window.location.search).get("next");
+        router.push(requested?.startsWith("/") ? requested : "/sports");
       } catch (caught) {
         setSubmitted(false);
         setError(getApiErrorMessage(caught));

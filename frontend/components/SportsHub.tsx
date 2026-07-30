@@ -97,6 +97,7 @@ export default function SportsHub(){
   const [validation,setValidation]=useState<ValidationPreview|null>(null);
   const [user,setUser]=useState<SessionUser|null>(null);
   const [wallet,setWallet]=useState<Wallet|null>(null);
+  const [sessionLoading,setSessionLoading]=useState(true);
 
   useEffect(()=>{
     let mounted=true;
@@ -112,12 +113,11 @@ export default function SportsHub(){
   },[]);
   useEffect(()=>{
     let mounted=true;
-    getCurrentUser().then(async current=>{
+    getCurrentUser().then(current=>{
       if(!mounted)return;
       setUser(current);
-      const balance=await authenticatedApiRequest<Wallet>("/wallet/me");
-      if(mounted)setWallet(balance);
-    }).catch(()=>{if(mounted){setUser(null);setWallet(null);}});
+      return authenticatedApiRequest<Wallet>("/wallet/me").then(balance=>{if(mounted)setWallet(balance)}).catch(()=>{if(mounted)setWallet(null)});
+    }).catch(()=>{if(mounted){setUser(null);setWallet(null);}}).finally(()=>{if(mounted)setSessionLoading(false)});
     return()=>{mounted=false};
   },[]);
 
@@ -177,7 +177,7 @@ export default function SportsHub(){
 
   const BetSlip = ({mobile=false}:{mobile?:boolean}) => <aside className={`betslip ${mobile?"mobile-slip-panel":""}`}>
     {mobile && <button className="slip-close" onClick={()=>setMobileSlip(false)}>×</button>}
-    <div className="betslip-tabs"><button className="active">Betslip <b>{slip.length}</b></button><button>My Bets</button></div>
+    <div className="betslip-tabs"><button className="active">Betslip <b>{slip.length}</b></button><Link href="/my-bets">My Bets</Link></div>
     {!slip.length?<div className="empty-slip"><span>＋</span><h3>Your betslip is empty</h3><p>Select odds from any event to build your ticket.</p><div><b>Booking code</b><div className="booking-row"><input value={bookingInput} onChange={e=>setBookingInput(e.target.value.toUpperCase())} placeholder="Enter booking code"/><button disabled={slipBusy} onClick={loadBooking}>Load</button></div>{slipNotice&&<small className="slip-notice">{slipNotice}</small>}</div></div>:<>
       <div className="slip-topline"><span>Accumulator</span><button onClick={()=>setSlip([])}>Clear all</button></div>{slipNotice&&<div className="slip-notice">{slipNotice}</div>}
       <div className="slip-items">{slip.map(s=><article key={s.id}><button aria-label="Remove selection" onClick={()=>setSlip(x=>x.filter(v=>v.id!==s.id))}>×</button><small>{s.market}</small><strong>{s.pick} · {s.match}</strong><div><span>Odds</span><b>{s.odds.toFixed(2)}</b></div></article>)}</div>
@@ -198,7 +198,7 @@ export default function SportsHub(){
     <header className="sports-topbar">
       <Link className="sports-brand" href="/"><span>M</span>Mkwanja<b>Bet</b></Link>
       <nav><Link className="active" href="/sports">Sports</Link><Link href="/live">Live</Link><Link href="/jackpot">Jackpots</Link><Link href="/promotions">Promotions</Link></nav>
-      <div className="sports-actions"><Link className="wallet-preview" href={user?"/account":"/login?next=/sports"}><small>Balance</small><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></Link>{user?<Link className="sports-register" href="/account">My account</Link>:<><Link href="/login?next=/sports">Log in</Link><Link className="sports-register" href="/register">Register</Link></>}</div>
+      <div className="sports-actions"><Link className="wallet-preview" href={user?"/dashboard":"/login?next=/sports"}><small>Balance</small><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></Link>{sessionLoading?<span className="sports-session-loading">Checking session...</span>:user?<Link className="sports-register" href="/dashboard">My account</Link>:<><Link href="/login?next=/sports">Log in</Link><Link className="sports-register" href="/register">Register</Link></>}</div>
     </header>
     <div className="sports-mainnav">
       {["Sports","Live","Jackpots","Aviator","Livescore","Results","Promotions"].map((x,i)=><button key={x} className={i===0?"active":""}>{x}{x==="Live"&&<i/>}</button>)}
@@ -213,13 +213,13 @@ export default function SportsHub(){
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">
-        <div className="sports-hero"><div><span>MKWANJABET SPORTSBOOK</span><h1>Big matches.<br/>Bigger possibilities.</h1><p>A fast, mobile-first sportsbook experience built for Tanzania — with clear markets, quick tickets and local payments ready for integration.</p><div className="hero-actions-mini"><button>Explore top games</button><button>How to play</button></div></div><div className="hero-jackpot"><small>WEEKLY JACKPOT</small><b>TZS 50,000,000</b><span>Predict 15 matches</span><Link href="/jackpot">Play jackpot →</Link></div></div>
-        <div className="promo-cards"><article><span>BOOST</span><b>Enhanced odds</b><small>Selected top matches</small></article><article><span>NEW</span><b>Early payout</b><small>Eligible football bets</small></article><article><span>FAST</span><b>Instant booking</b><small>Save and share tickets</small></article></div>
+        <div className="sports-hero"><div><span>MKWANJABET SPORTSBOOK</span><h1>Live odds.<br/>One secure wallet.</h1><p>Browse current events, build your ticket and track every wallet-backed bet from one account.</p><div className="hero-actions-mini"><Link href="#events">Explore events</Link><Link href="/responsible-play">Play responsibly</Link></div></div><div className="hero-jackpot"><small>YOUR ACCOUNT</small><b>{user?`TZS ${(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}`:"Start betting"}</b><span>{user?"Available wallet balance":"Create an account to fund your wallet and place tickets"}</span><Link href={user?"/wallet/deposit":"/register"}>{user?"Deposit funds":"Register now"} →</Link></div></div>
+        <div className="promo-cards"><article><span>LIVE</span><b>Current event odds</b><small>Markets loaded from the sportsbook API</small></article><article><span>SAFE</span><b>Wallet-backed tickets</b><small>Every stake and payout is recorded</small></article><article><span>FAST</span><b>Instant booking</b><small>Save and restore a ticket by code</small></article></div>
         <div className="sports-toolbar"><div><button onClick={()=>setTab("prematch")} className={tab==="prematch"?"active":""}>Pre-match</button><button onClick={()=>setTab("live")} className={tab==="live"?"active":""}><i/> Live now</button></div><label><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search team, league or country"/></label></div>
         <div className="quick-filters">{["All","Today","Tomorrow","Top leagues","Starting soon","Boosted"].map((x,i)=><button className={i===0?"active":""} key={x}>{x}</button>)}</div>
         {eventsNotice&&<div className="sports-data-notice">{eventsNotice}</div>}
         <div className="market-labels"><span>{tab==="live"?"Live events":"Featured events"}</span><div><b>1</b><b>X</b><b>2</b><b>More</b></div></div>
-        <div className="event-list">
+        <div className="event-list" id="events">
           {visible.length===0&&<div className="no-events"><b>No events found</b><span>Try another sport, tab or search.</span></div>}
           {visible.map(e=><article className="event-card" key={e.id}>
             <div className="event-meta"><small><b>{e.country}</b> · {e.league}</small><div><button>☆</button><time>{e.live?<><i/> LIVE {e.minute}</>:e.time}</time></div></div>
@@ -232,6 +232,11 @@ export default function SportsHub(){
       <BetSlip/>
     </section>
     <nav className="sports-mobile-nav"><Link href="/sports"><span>⚽</span>Sports</Link><Link href="/live"><span>●</span>Live</Link><button className="mobile-slip-button" onClick={()=>setMobileSlip(true)}><span>▤</span>Betslip<b>{slip.length}</b></button><Link href="/promotions"><span>★</span>Promos</Link><Link href="/dashboard"><span>◎</span>Account</Link></nav>
-    {mobileSlip&&<div className="mobile-slip-wrap"><div className="mobile-slip-scrim" onClick={()=>setMobileSlip(false)}/><BetSlip mobile/></div>}
+    {mobileSlip&&<div className="mobile-slip-wrap"><div className="mobile-slip-scrim" onClick={()=>setMobileSlip(false)}/><BetSlip mobile/></div>}    <footer className="sports-footer">
+      <div><Link className="sports-brand" href="/"><span>M</span>Mkwanja<b>Bet</b></Link><p>Secure, wallet-backed sports betting built for Tanzania.</p></div>
+      <nav><Link href="/sports">Sports</Link><Link href="/my-bets">My bets</Link><Link href="/wallet/deposit">Deposit</Link><Link href="/contact">Support</Link></nav>
+      <nav><Link href="/responsible-play">Responsible gaming</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/disclaimer">Rules</Link></nav>
+      <div className="sports-footer-trust"><b>18+ only</b><span>Play responsibly. Never bet more than you can afford to lose.</span><small>© 2026 MkwanjaBet. All rights reserved.</small></div>
+    </footer>
   </main>
 }
