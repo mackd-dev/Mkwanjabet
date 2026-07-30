@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { BookingCodesService } from "./booking-codes.service";
-import { SaveBookingCodeDto } from "./dto/booking-code.dto";
+import { SaveBookingCodeDto, ValidateBetPreviewDto } from "./dto/booking-code.dto";
 
 @Controller("betting")
 export class BookingCodesController {
@@ -14,5 +14,10 @@ export class BookingCodesController {
   @Get("booking/:code")
   load(@Param("code") code: string) {
     return this.bookingCodes.load(code);
+  }
+
+  @Post("validate-preview")
+  validatePreview(@Body() dto: ValidateBetPreviewDto) {
+    return this.bookingCodes.validatePreview(dto);
   }
 }

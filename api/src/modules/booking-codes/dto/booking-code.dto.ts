@@ -20,3 +20,8 @@ export class SaveBookingCodeDto {
   @IsOptional() @IsInt() @Min(0)
   stakeTzs?: number;
 }
+
+export class ValidateBetPreviewDto extends SaveBookingCodeDto {
+  @IsInt() @Min(1)
+  declare stakeTzs: number;
+}

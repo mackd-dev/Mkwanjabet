@@ -29,6 +29,7 @@ type ApiEvent = {
   sport?: { name: string } | null; country?: { name: string } | null; competition?: { name: string } | null;
   markets: ApiMarket[];
 };
+type ValidationPreview = { status: "READY"|"WARNING"|"INVALID"; valid: boolean; errors: string[]; warnings: string[]; totalOdds: number; potentialReturnTzs: number; message: string };
 
 const fallbackEvents: Event[] = [
   {id:"ars-che",sport:"Football",country:"England",league:"Premier League",time:"20:00",home:"Arsenal",away:"Chelsea",markets:[{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-home",label:"1",name:"Arsenal",odds:1.84},{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-draw",label:"X",name:"Draw",odds:3.55},{id:"demo-ars-che-match-result",outcomeId:"demo-ars-che-away",label:"2",name:"Chelsea",odds:4.40}],more:96},
@@ -87,6 +88,7 @@ export default function SportsHub(){
   const [bookingCode,setBookingCode]=useState("");
   const [slipNotice,setSlipNotice]=useState("");
   const [slipBusy,setSlipBusy]=useState(false);
+  const [validation,setValidation]=useState<ValidationPreview|null>(null);
 
   useEffect(()=>{
     let mounted=true;
@@ -122,6 +124,12 @@ export default function SportsHub(){
     try{const r=await apiRequest<{code:string}>("/betting/booking",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake})});setBookingCode(r.code);setBookingInput(r.code);setSlipNotice(`Booking saved: ${r.code}`)}
     catch{setSlipNotice("Could not save booking. Make sure the API is running.")}finally{setSlipBusy(false)}
   };
+  const validateTicket=async()=>{
+    if(!slip.length)return;
+    setSlipBusy(true);setSlipNotice("");setValidation(null);
+    try{const r=await apiRequest<ValidationPreview>("/betting/validate-preview",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake})});setValidation(r);setSlipNotice(r.message)}
+    catch{setSlipNotice("Could not validate ticket. Make sure the API is running.")}finally{setSlipBusy(false)}
+  };
   const loadBooking=async()=>{
     if(!bookingInput.trim())return;
     setSlipBusy(true);setSlipNotice("");
@@ -146,7 +154,9 @@ export default function SportsHub(){
         <div className="quick-stakes">{[1000,2000,5000,10000].map(v=><button key={v} onClick={()=>setStake(v)}>+{v/1000}K</button>)}</div>
         <p><span>Total odds</span><b>{totalOdds.toFixed(2)}</b></p><p><span>Potential payout</span><b>TZS {potential.toLocaleString("en-US",{maximumFractionDigits:0})}</b></p>
         <label className="odds-change"><input type="checkbox" checked={oddsAccepted} onChange={e=>setOddsAccepted(e.target.checked)}/> Accept odds changes</label>
-        <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={saveBooking}>{slipBusy?"Working...":"Save booking code"}</button>{bookingCode&&<div className="saved-code"><span>Booking code</span><b>{bookingCode}</b><button onClick={()=>navigator.clipboard?.writeText(bookingCode)}>Copy</button></div>}<button className="place-bet-btn" disabled={!stake || !oddsAccepted}>Log in & place bet</button>
+        <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={validateTicket}>{slipBusy?"Working...":"Validate ticket"}</button>
+        {validation&&<div className={`ticket-validation ${validation.status.toLowerCase()}`}><b>{validation.status}</b><span>{validation.message}</span>{[...validation.errors,...validation.warnings].slice(0,3).map(x=><small key={x}>{x}</small>)}</div>}
+        <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={saveBooking}>{slipBusy?"Working...":"Save booking code"}</button>{bookingCode&&<div className="saved-code"><span>Booking code</span><b>{bookingCode}</b><button onClick={()=>navigator.clipboard?.writeText(bookingCode)}>Copy</button></div>}<button className="place-bet-btn" disabled>{validation?.status==="READY"?"Wallet placement coming next":"Validate before placement"}</button>
         <small>18+ · Play responsibly. Final wagering will be enabled after licensing and production integrations.</small>
       </div>
     </>}
