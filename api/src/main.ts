@@ -6,7 +6,7 @@ import helmet from "helmet";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: false });
+  const app = await NestFactory.create(AppModule, { cors: false, rawBody: true });
   const config = app.get(ConfigService);
   app.setGlobalPrefix("api/v1");
   app.use(helmet());
@@ -24,3 +24,4 @@ async function bootstrap() {
   console.log(`MkwanjaBet API listening on ${port}`);
 }
 bootstrap();
+

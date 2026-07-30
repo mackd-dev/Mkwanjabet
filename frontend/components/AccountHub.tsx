@@ -54,15 +54,26 @@ export default function AccountHub({initial="wallet"}:{initial?:View}){
   void loadAccount();
   return()=>{mounted=false};
  },[router]);
- async function submitWallet(type:"deposit"|"withdraw"){
+ async function pollDeposit(reference:string){
+  for(let attempt=0;attempt<6;attempt++){
+   await new Promise(resolve=>setTimeout(resolve,5000));
+   try{
+    const entry=await authenticatedApiRequest<ApiTransaction>(`/wallet/deposit/${encodeURIComponent(reference)}/status`,{method:"POST"});
+    const walletData=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(walletData);
+    if(entry.status==="COMPLETED"){setNotice("Deposit confirmed. Your wallet balance has been updated.");return}
+    if(entry.status==="FAILED"){setWalletError("The deposit was not completed. Please try again.");return}
+   }catch{return}
+  }
+ } async function submitWallet(type:"deposit"|"withdraw"){
   const amountTzs=Number(amount);
   setNotice("");setWalletError("");
   if(!Number.isInteger(amountTzs)||amountTzs<1000||amountTzs>10000000){setWalletError("Enter an amount between 1,000 and 10,000,000 TZS.");return}
   setWalletBusy(type);
   try{
-   await authenticatedApiRequest(`/wallet/${type}`,{method:"POST",body:JSON.stringify({provider:providerCode(method),phone:user?.phone,amountTzs})});
+   const entry=await authenticatedApiRequest<ApiTransaction>(`/wallet/${type}`,{method:"POST",body:JSON.stringify({provider:providerCode(method),phone:user?.phone,amountTzs})});
    const walletData=await authenticatedApiRequest<Wallet>("/wallet/me");
-   setWallet(walletData);setNotice(`${type==="deposit"?"Deposit":"Withdrawal"} request received and marked pending.`);setView("wallet");
+   setWallet(walletData);setNotice(type==="deposit"?"Push USSD sent. Approve the payment on your phone.":"Withdrawal request received and marked pending.");setView("wallet");
+   if(type==="deposit")void pollDeposit(entry.reference);
   }catch(error){setWalletError(apiMessage(error))}
   finally{setWalletBusy(null)}
  }
@@ -94,4 +105,5 @@ function PageTitle({eyebrow,title,text}:{eyebrow:string,title:string,text:string
 function TransactionTable({items}:{items:Tx[]}){if(!items.length)return <div className="ah-ticket-note"><b>No transactions yet</b><span>Your completed wallet activity will appear here.</span></div>;return <div className="ah-table">{items.map(t=><div key={t.id}><span className={t.amount>0?"in":"out"}>{t.amount>0?"↓":"↑"}</span><div><b>{t.type}</b><small>{t.method} · {t.id}</small></div><time>{t.date}</time><strong className={t.amount>0?"positive":""}>{t.amount>0?"+":""}{money(t.amount)}</strong><i className={t.status.toLowerCase()}>{t.status}</i></div>)}</div>}
 function SummaryCard({type,amount,method}:{type:string,amount:number,method:string}){return <aside className="ah-summary"><span>SECURE {type.toUpperCase()}</span><h2>Transaction summary</h2><div><small>Method</small><b>{method}</b></div><div><small>Amount</small><b>{money(amount)}</b></div><div><small>Fee</small><b>{money(0)}</b></div><div className="total"><small>{type==="deposit"?"You receive":"Amount sent"}</small><strong>{money(amount)}</strong></div><p>🔒 Your request is protected and will be recorded in the wallet ledger.</p></aside>}
 function LimitCard({title,desc,value}:{title:string,desc:string,value:string}){return <article className="ah-limit-card"><span>◉</span><div><h2>{title}</h2><p>{desc}</p></div><select defaultValue="Daily"><option>Daily</option><option>Weekly</option><option>Monthly</option></select><label><b>TZS</b><input defaultValue={value}/></label><button>Update limit</button></article>}
+
 
