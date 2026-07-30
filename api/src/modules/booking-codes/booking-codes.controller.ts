@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { CurrentUser } from "../auth/current-user.decorator";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BookingCodesService } from "./booking-codes.service";
 import { SaveBookingCodeDto, ValidateBetPreviewDto } from "./dto/booking-code.dto";
 
@@ -19,5 +21,11 @@ export class BookingCodesController {
   @Post("validate-preview")
   validatePreview(@Body() dto: ValidateBetPreviewDto) {
     return this.bookingCodes.validatePreview(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("validate")
+  validate(@CurrentUser() user: { id: string }, @Body() dto: ValidateBetPreviewDto) {
+    return this.bookingCodes.validateForUser(user.id, dto);
   }
 }

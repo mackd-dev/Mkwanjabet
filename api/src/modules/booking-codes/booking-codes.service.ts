@@ -115,6 +115,29 @@ export class BookingCodesService {
     };
   }
 
+  async validateForUser(userId: string, dto: ValidateBetPreviewDto) {
+    const preview = await this.validatePreview(dto);
+    const wallet = await this.db.wallet.findUnique({ where: { userId } });
+    const walletErrors = [...preview.errors];
+    if (!wallet) walletErrors.push("Wallet is not ready for betting");
+    else if (wallet.availableBalanceTzs < dto.stakeTzs) walletErrors.push("Insufficient wallet balance");
+
+    return {
+      ...preview,
+      valid: preview.valid && walletErrors.length === preview.errors.length,
+      status: walletErrors.length > preview.errors.length ? "INVALID" : preview.status,
+      errors: walletErrors,
+      wallet: wallet ? {
+        availableBalanceTzs: wallet.availableBalanceTzs,
+        lockedBalanceTzs: wallet.lockedBalanceTzs,
+        withdrawableTzs: wallet.withdrawableTzs,
+        bonusBalanceTzs: wallet.bonusBalanceTzs,
+        enoughBalance: wallet.availableBalanceTzs >= dto.stakeTzs,
+      } : null,
+      message: walletErrors.length > preview.errors.length ? "Ticket is valid structurally, but wallet is not ready." : preview.message,
+    };
+  }
+
   private toResponse(booking: { code: string; stakeTzs: number | null; selections: Prisma.JsonValue; expiresAt: Date; createdAt: Date }) {
     return {
       code: booking.code,
