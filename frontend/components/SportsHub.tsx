@@ -46,9 +46,7 @@ function apiMessage(error: unknown) {
   }
   return "Request could not be completed. Please try again.";
 }
-const sports = [
-  ["Football","⚽",42],["Basketball","🏀",18],["Tennis","🎾",26],["Volleyball","🏐",12],["Ice Hockey","◉",8],["Table Tennis","◌",31]
-] as const;
+const sportIcons: Record<string,string> = { Football:"⚽", Basketball:"🏀", Tennis:"🎾", Volleyball:"🏐", "Ice Hockey":"◉", "Table Tennis":"◌" };
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
@@ -69,7 +67,7 @@ function toEvent(event: ApiEvent): Event {
     sport: event.sport?.name ?? "Football",
     country: event.country?.name ?? "Global",
     league: event.competition?.name ?? "Competition",
-    time: live ? "LIVE" : formatTime(event.startsAt),
+    time: event.startsAt,
     minute: event.liveClock ?? undefined,
     home: event.homeTeamName ?? event.name.split(" vs ")[0] ?? event.name,
     away: event.awayTeamName ?? event.name.split(" vs ")[1] ?? "Opponent",
@@ -80,10 +78,11 @@ function toEvent(event: ApiEvent): Event {
   };
 }
 
-export default function SportsHub(){
-  const [tab,setTab]=useState<"prematch"|"live">("prematch");
+export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch"|"live"}={}){
+  const [tab,setTab]=useState<"prematch"|"live">(initialTab);
   const [sport,setSport]=useState("Football");
-  const [query,setQuery]=useState("");
+  const [query,setQuery]=useState("" );
+  const [timeFilter,setTimeFilter]=useState<"all"|"today"|"tomorrow"|"soon">("all");
   const [events,setEvents]=useState<Event[]>([]);
   const [eventsNotice,setEventsNotice]=useState("");
   const [slip,setSlip]=useState<Selection[]>([]);
@@ -121,11 +120,15 @@ export default function SportsHub(){
     return()=>{mounted=false};
   },[]);
 
+  const sportOptions=useMemo(()=>Array.from(new Set(events.map(event=>event.sport))).map(name=>({name,icon:sportIcons[name]??"•",count:events.filter(event=>event.sport===name).length})),[events]);
+  const competitionOptions=useMemo(()=>Array.from(new Set(events.filter(event=>event.sport===sport).map(event=>event.league))).slice(0,8),[events,sport]);
   const visible=events.filter(e=>{
     const tabMatch=tab==="live" ? e.live : !e.live;
     const sportMatch=e.sport===sport;
     const q=`${e.home} ${e.away} ${e.league} ${e.country}`.toLowerCase();
-    return tabMatch && sportMatch && q.includes(query.toLowerCase());
+    const now=new Date();const eventDate=new Date(e.time);const startOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate());const startOfTomorrow=new Date(startOfToday);startOfTomorrow.setDate(startOfTomorrow.getDate()+1);const endOfTomorrow=new Date(startOfTomorrow);endOfTomorrow.setDate(endOfTomorrow.getDate()+1);
+    const timeMatch=timeFilter==="all"||e.live||(timeFilter==="today"&&eventDate>=startOfToday&&eventDate<startOfTomorrow)||(timeFilter==="tomorrow"&&eventDate>=startOfTomorrow&&eventDate<endOfTomorrow)||(timeFilter==="soon"&&eventDate>=now&&eventDate.getTime()-now.getTime()<=3*60*60*1000);
+    return tabMatch && sportMatch && timeMatch && q.includes(query.toLowerCase());
   });
   const totalOdds=useMemo(()=>slip.reduce((n,s)=>n*s.odds,1),[slip]);
   const potential=stake*totalOdds;
@@ -197,32 +200,32 @@ export default function SportsHub(){
   return <main className="sports-shell">
     <header className="sports-topbar">
       <Link className="sports-brand" href="/"><span>M</span>Mkwanja<b>Bet</b></Link>
-      <nav><Link className="active" href="/sports">Sports</Link><Link href="/live">Live</Link><Link href="/jackpot">Jackpots</Link><Link href="/promotions">Promotions</Link></nav>
+      <nav><Link className={tab==="prematch"?"active":""} href="/sports">Sports</Link><Link className={tab==="live"?"active":""} href="/live">Live</Link><Link href="/results">Results</Link><Link href="/responsible-play">Responsible play</Link></nav>
       <div className="sports-actions"><Link className="wallet-preview" href={user?"/dashboard":"/login?next=/sports"}><small>Balance</small><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></Link>{sessionLoading?<span className="sports-session-loading">Checking session...</span>:user?<Link className="sports-register" href="/dashboard">My account</Link>:<><Link href="/login?next=/sports">Log in</Link><Link className="sports-register" href="/register">Register</Link></>}</div>
     </header>
     <div className="sports-mainnav">
-      {["Sports","Live","Jackpots","Aviator","Livescore","Results","Promotions"].map((x,i)=><button key={x} className={i===0?"active":""}>{x}{x==="Live"&&<i/>}</button>)}
+      <Link className={tab==="prematch"?"active":""} href="/sports">Sports</Link><Link className={tab==="live"?"active":""} href="/live">Live</Link><Link href="/my-bets">My bets</Link><Link href="/results">Results</Link><Link href="/wallet/deposit">Deposit</Link>
     </div>
-    <section className="ticker"><b>🔥 TRENDING</b><span>Premier League</span><span>Champions League</span><span>NBA</span><span>Jackpot</span><span>Today’s boosted odds</span></section>
+    <section className="ticker"><b>IN PLAY</b>{Array.from(new Set(events.map(event=>event.league))).slice(0,6).map(league=><span key={league}>{league}</span>)}{!events.length&&<span>Waiting for event feed</span>}</section>
     <section className="sports-layout">
       <aside className="sports-left">
         <h3>Sports</h3>
-        {sports.map(([name,icon,count])=><button key={name} onClick={()=>setSport(name)} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>)}
+        {sportOptions.map(({name,icon,count})=><button key={name} onClick={()=>setSport(name)} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>)}
         <h3>Popular competitions</h3>
-        {["Premier League","UEFA Champions League","La Liga","Serie A","Bundesliga","CAF Champions League"].map(x=><button key={x}><span>☆</span>{x}</button>)}
+        {competitionOptions.length?competitionOptions.map(x=><button key={x} onClick={()=>setQuery(x)}><span>☆</span>{x}</button>):<small className="sports-empty-competitions">No competitions available</small>}
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">
         <div className="sports-hero"><div><span>MKWANJABET SPORTSBOOK</span><h1>Live odds.<br/>One secure wallet.</h1><p>Browse current events, build your ticket and track every wallet-backed bet from one account.</p><div className="hero-actions-mini"><Link href="#events">Explore events</Link><Link href="/responsible-play">Play responsibly</Link></div></div><div className="hero-jackpot"><small>YOUR ACCOUNT</small><b>{user?`TZS ${(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}`:"Start betting"}</b><span>{user?"Available wallet balance":"Create an account to fund your wallet and place tickets"}</span><Link href={user?"/wallet/deposit":"/register"}>{user?"Deposit funds":"Register now"} →</Link></div></div>
         <div className="promo-cards"><article><span>LIVE</span><b>Current event odds</b><small>Markets loaded from the sportsbook API</small></article><article><span>SAFE</span><b>Wallet-backed tickets</b><small>Every stake and payout is recorded</small></article><article><span>FAST</span><b>Instant booking</b><small>Save and restore a ticket by code</small></article></div>
         <div className="sports-toolbar"><div><button onClick={()=>setTab("prematch")} className={tab==="prematch"?"active":""}>Pre-match</button><button onClick={()=>setTab("live")} className={tab==="live"?"active":""}><i/> Live now</button></div><label><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search team, league or country"/></label></div>
-        <div className="quick-filters">{["All","Today","Tomorrow","Top leagues","Starting soon","Boosted"].map((x,i)=><button className={i===0?"active":""} key={x}>{x}</button>)}</div>
+        <div className="quick-filters">{[["all","All"],["today","Today"],["tomorrow","Tomorrow"],["soon","Starting soon"]].map(([key,label])=><button onClick={()=>setTimeFilter(key as typeof timeFilter)} className={timeFilter===key?"active":""} key={key}>{label}</button>)}</div>
         {eventsNotice&&<div className="sports-data-notice">{eventsNotice}</div>}
         <div className="market-labels"><span>{tab==="live"?"Live events":"Featured events"}</span><div><b>1</b><b>X</b><b>2</b><b>More</b></div></div>
         <div className="event-list" id="events">
           {visible.length===0&&<div className="no-events"><b>No events found</b><span>Try another sport, tab or search.</span></div>}
           {visible.map(e=><article className="event-card" key={e.id}>
-            <div className="event-meta"><small><b>{e.country}</b> · {e.league}</small><div><button>☆</button><time>{e.live?<><i/> LIVE {e.minute}</>:e.time}</time></div></div>
+            <div className="event-meta"><small><b>{e.country}</b> · {e.league}</small><div><button>☆</button><time>{e.live?<><i/> LIVE {e.minute}</>:formatTime(e.time)}</time></div></div>
             <div className="event-body"><Link className="teams" href={`/sports/match/${e.id}`}><div><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"}</small></Link><div className="odds-grid">{e.markets.map(m=>{const id=`${e.id}-${m.outcomeId}`;return <button key={m.outcomeId} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>})}<button className="more">+{e.more}</button></div></div>
             <div className="event-footer"><button>▥ Stats</button><button>◉ Live tracker</button><span>{e.more} markets available</span></div>
           </article>)}
@@ -231,7 +234,7 @@ export default function SportsHub(){
       </section>
       <BetSlip/>
     </section>
-    <nav className="sports-mobile-nav"><Link href="/sports"><span>⚽</span>Sports</Link><Link href="/live"><span>●</span>Live</Link><button className="mobile-slip-button" onClick={()=>setMobileSlip(true)}><span>▤</span>Betslip<b>{slip.length}</b></button><Link href="/promotions"><span>★</span>Promos</Link><Link href="/dashboard"><span>◎</span>Account</Link></nav>
+    <nav className="sports-mobile-nav"><Link href="/sports"><span>⚽</span>Sports</Link><Link href="/live"><span>●</span>Live</Link><button className="mobile-slip-button" onClick={()=>setMobileSlip(true)}><span>▤</span>Betslip<b>{slip.length}</b></button><Link href="/results"><span>✓</span>Results</Link><Link href="/dashboard"><span>◎</span>Account</Link></nav>
     {mobileSlip&&<div className="mobile-slip-wrap"><div className="mobile-slip-scrim" onClick={()=>setMobileSlip(false)}/><BetSlip mobile/></div>}    <footer className="sports-footer">
       <div><Link className="sports-brand" href="/"><span>M</span>Mkwanja<b>Bet</b></Link><p>Secure, wallet-backed sports betting built for Tanzania.</p></div>
       <nav><Link href="/sports">Sports</Link><Link href="/my-bets">My bets</Link><Link href="/wallet/deposit">Deposit</Link><Link href="/contact">Support</Link></nav>

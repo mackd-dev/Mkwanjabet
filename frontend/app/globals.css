@@ -116,3 +116,5 @@ img,svg{max-width:100%}
 @media(max-width:760px){.sports-footer{grid-template-columns:1fr 1fr;padding:28px 18px 82px;gap:24px}.sports-footer>div:first-child,.sports-footer-trust{grid-column:1/-1}.sports-session-loading{display:none}}
 
 .hero-actions-mini a{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:white;border-radius:6px;padding:9px 13px;font-size:11px;font-weight:800;text-decoration:none}.hero-actions-mini a:first-child{background:#fbbf24;color:#122719;border-color:#fbbf24}.betslip-tabs a{display:grid;place-items:center;color:#213329;text-decoration:none;font-weight:800;font-size:13px}
+
+.sports-mainnav a{color:#dce9e0;padding:14px 20px;font-weight:700;white-space:nowrap;text-decoration:none}.sports-mainnav a.active{background:#16a34a;color:white;border-bottom:3px solid #fbbf24}.sports-empty-competitions{display:block;padding:10px;color:#718076}
