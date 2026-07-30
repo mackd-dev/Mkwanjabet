@@ -3,10 +3,24 @@
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ApiError, apiRequest } from "@/lib/api-client";
+import { saveSession } from "@/lib/session";
 
 type Mode = "login" | "register" | "forgot" | "verify";
 
 type Props = { mode: Mode };
+
+type LoginResponse = {
+  user: {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string | null;
+    role: string;
+  };
+  accessToken: string;
+  refreshToken: string;
+};
 
 const content = {
   login: {
@@ -39,6 +53,8 @@ export default function AuthPage({ mode }: Props) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const page = content[mode];
   const isLogin = mode === "login";
@@ -48,16 +64,38 @@ export default function AuthPage({ mode }: Props) {
 
   const message = useMemo(() => {
     if (!submitted) return "";
-    if (isLogin) return "Demo: login imepokelewa. Backend itaunganisha akaunti halisi baadaye.";
+    if (isLogin) return "Umeingia kwenye akaunti yako. Tunakupeleka kwenye dashibodi.";
     if (isRegister) return "Demo: taarifa zimepokelewa. Hatua inayofuata ni uthibitisho wa akaunti.";
     if (isForgot) return "Demo: namba ya uthibitisho imetumwa.";
     return "Demo: akaunti imethibitishwa kwa mafanikio.";
   }, [submitted, isLogin, isRegister, isForgot]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
+    if (isLogin) {
+      setBusy(true);
+      const form = new FormData(event.currentTarget);
+      try {
+        const session = await apiRequest<LoginResponse>("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({
+            identifier: normalizeIdentifier(String(form.get("identifier") ?? "")),
+            password: String(form.get("password") ?? ""),
+          }),
+        });
+        saveSession(session);
+        setSubmitted(true);
+        router.push("/dashboard");
+      } catch (caught) {
+        setSubmitted(false);
+        setError(getApiErrorMessage(caught));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     setSubmitted(true);
-    if (isLogin) setTimeout(() => router.push("/dashboard"), 500);
   }
 
   function updateOtp(index: number, value: string) {
@@ -108,7 +146,7 @@ export default function AuthPage({ mode }: Props) {
               {!isVerify && (
                 <label>
                   <span>{isForgot ? "Namba ya simu au barua pepe" : "Namba ya simu"}</span>
-                  <div className="phone-field">{!isForgot && <b>+255</b>}<input required type={isForgot ? "text" : "tel"} placeholder={isForgot ? "07XXXXXXXX au email@example.com" : "7XX XXX XXX"} /></div>
+                  <div className="phone-field">{!isForgot && <b>+255</b>}<input required name="identifier" type={isForgot ? "text" : "tel"} placeholder={isForgot ? "07XXXXXXXX au email@example.com" : "7XX XXX XXX"} /></div>
                 </label>
               )}
 
@@ -117,7 +155,7 @@ export default function AuthPage({ mode }: Props) {
               {(isLogin || isRegister) && (
                 <label>
                   <span>Nenosiri</span>
-                  <div className="password-field"><input required minLength={6} type={showPassword ? "text" : "password"} placeholder="Angalau tarakimu 6" /><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Ficha" : "Onyesha"}</button></div>
+                  <div className="password-field"><input required name="password" minLength={8} type={showPassword ? "text" : "password"} placeholder="Angalau tarakimu 8" /><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Ficha" : "Onyesha"}</button></div>
                 </label>
               )}
 
@@ -134,7 +172,8 @@ export default function AuthPage({ mode }: Props) {
                 </div>
               )}
 
-              <button className="btn btn-gold auth-submit" type="submit">{page.submit} →</button>
+              <button className="btn btn-gold auth-submit" type="submit" disabled={busy}>{busy ? "Inaingia..." : page.submit} →</button>
+              {error && <div className="auth-error" role="alert">{error}</div>}
               {message && <div className="auth-success">✓ {message}</div>}
             </form>
 
@@ -154,3 +193,29 @@ export default function AuthPage({ mode }: Props) {
     </main>
   );
 }
+function normalizeIdentifier(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.includes("@")) return trimmed.toLowerCase();
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.startsWith("255")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+255${digits.slice(1)}`;
+  return `+255${digits}`;
+}
+
+function getApiErrorMessage(caught: unknown) {
+  if (caught instanceof ApiError && caught.payload && typeof caught.payload === "object") {
+    const payload = caught.payload as { message?: unknown; error?: unknown };
+    if (typeof payload.message === "string") return payload.message;
+    if (typeof payload.error === "string") return payload.error;
+    if (payload.error && typeof payload.error === "object") {
+      const error = payload.error as { message?: unknown };
+      if (typeof error.message === "string") return error.message;
+    }
+  }
+  return "Imeshindikana kuingia. Hakikisha API inaendeshwa kisha jaribu tena.";
+}
+
+
+
+
+
