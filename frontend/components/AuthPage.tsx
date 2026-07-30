@@ -26,13 +26,13 @@ const content = {
   login: {
     eyebrow: "KARIBU TENA",
     title: "Ingia kwenye MkwanjaBet.",
-    copy: "Fungua picks zako, subscription na historia ya akaunti yako.",
+    copy: "Access your wallet, tickets and account activity.",
     submit: "Ingia kwenye Akaunti",
   },
   register: {
     eyebrow: "ANZA SASA",
     title: "Fungua akaunti yako.",
-    copy: "Jiunge na MkwanjaBet, hifadhi picks na ufungue Premium kwa urahisi.",
+    copy: "Create your account to fund your wallet and place secure tickets.",
     submit: "Fungua Akaunti",
   },
   forgot: {
@@ -119,13 +119,13 @@ export default function AuthPage({ mode }: Props) {
       <section className="auth-layout">
         <aside className="auth-showcase">
           <div className="auth-showcase-glow"></div>
-          <span className="eyebrow">ENEO LA WANACHAMA WA MKWANJABET</span>
-          <h2>Picks zako.<br/><em>Sehemu moja salama.</em></h2>
-          <p>Ingia kuona picks za leo, uanachama wako, arifa na historia ya matokeo.</p>
+          <span className="eyebrow">SECURE MKWANJABET ACCOUNT</span>
+          <h2>Your wallet.<br/><em>Your tickets. One account.</em></h2>
+          <p>Sign in to manage funds, place bets and track every ticket.</p>
           <div className="auth-feature-list">
-            <article><i>01</i><div><b>Ufikiaji wa Premium</b><span>Fungua picks na uchambuzi uliolipia.</span></div></article>
-            <article><i>02</i><div><b>Hifadhi Picks</b><span>Rudi kwenye mechi muhimu bila kuitafuta tena.</span></div></article>
-            <article><i>03</i><div><b>Arifa Muhimu</b><span>Pata taarifa picks mpya zinapowekwa.</span></div></article>
+            <article><i>01</i><div><b>Secure wallet</b><span>Track deposits, stakes and winnings.</span></div></article>
+            <article><i>02</i><div><b>Track tickets</b><span>Review open and settled bets at any time.</span></div></article>
+            <article><i>03</i><div><b>Account security</b><span>Manage your profile and active sessions.</span></div></article>
           </div>
           <div className="auth-mini-card">
             <div><span>UHAKIKA WA PICK</span><strong>91%</strong></div>
@@ -192,7 +192,7 @@ export default function AuthPage({ mode }: Props) {
               {isVerify && <>Umeweka namba isiyo sahihi? <Link href="/register">Badilisha mawasiliano</Link></>}
             </p>
           </div>
-          <p className="auth-disclaimer">MkwanjaBet hutoa uchambuzi wa michezo pekee. Cheza kwa uwajibikaji.</p>
+          <p className="auth-disclaimer">18+ only. Play responsibly and never stake more than you can afford to lose.</p>
         </div>
       </section>
     </main>

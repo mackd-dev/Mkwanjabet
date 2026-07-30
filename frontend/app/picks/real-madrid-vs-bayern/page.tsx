@@ -1,5 +1,1 @@
-import MatchAnalysisPage from "../../../components/MatchAnalysisPage";
-
-export default function Page() {
-  return <MatchAnalysisPage />;
-}
+import { redirect } from "next/navigation"; export default function Page(){redirect("/sports")}

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MkwanjaBet — Picks Bora za Mpira",
-  description: "Picks za mpira, uchambuzi wa kina na matokeo yaliyo wazi kwa watumiaji wa Tanzania.",
+  title: "MkwanjaBet | Sportsbook Tanzania",
+  description: "Secure wallet-backed sports betting, live events and transparent ticket tracking for Tanzania.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

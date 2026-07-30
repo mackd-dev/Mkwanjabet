@@ -1,1 +1,1 @@
-import SportsbookInnerPage from "../../components/SportsbookInnerPage"; export default function Page(){return <SportsbookInnerPage type="jackpot"/>}
+import { redirect } from "next/navigation"; export default function Page(){redirect("/sports")}
