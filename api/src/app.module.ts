@@ -13,12 +13,13 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { SubscriptionsModule } from "./modules/subscriptions/subscriptions.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { SportsbookModule } from "./modules/sportsbook/sportsbook.module";
+import { BookingCodesModule } from "./modules/booking-codes/booking-codes.module";
 
 @Module({ imports: [
   ConfigModule.forRoot({ isGlobal: true }),
   ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]), PrismaModule,
   HealthModule, AuthModule, PicksModule, ResultsModule, PlansModule, UsersModule,
   SavedPicksModule, NotificationsModule, SubscriptionsModule, PaymentsModule,
-  SportsbookModule,
+  SportsbookModule, BookingCodesModule,
 ]})
 export class AppModule {}
