@@ -7,6 +7,7 @@ export type SessionUser = {
   email?: string | null;
   role: string;
   status?: string;
+  phoneVerifiedAt?: string | null;
   subscriptions?: unknown[];
 };
 
@@ -102,3 +103,4 @@ export async function logoutSession() {
     clearSession();
   }
 }
+

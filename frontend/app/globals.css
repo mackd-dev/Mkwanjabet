@@ -102,3 +102,6 @@ img,svg{max-width:100%}
 
 .ah-toast.error{background:#a52525}.ah-primary:disabled{opacity:.65;cursor:wait}
 
+
+.ah-security-form{display:grid;gap:12px}.ah-security-form>.ah-primary{width:max-content;margin:0}.ah-session-summary,.ah-session-row{display:flex!important;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid #edf1ee}.ah-session-summary span,.ah-session-row span{display:grid}.ah-session-summary button{border:1px solid #d9e2dc;background:#fff;border-radius:6px;font-size:9px;padding:8px 10px}.ah-session-summary button:disabled{opacity:.55}.ah-session-row small{font-size:8px;color:#7e8b83;margin-top:3px}
+
