@@ -45,7 +45,7 @@ export class SonicPesaService {
   await this.db.$transaction(async tx=>{
    const entry=await tx.walletTransaction.findUnique({where:{providerRef:orderId}});if(!entry||entry.amountTzs!==Number(amount)||entry.status==="COMPLETED")return;
    const changed=await tx.walletTransaction.updateMany({where:{id:entry.id,status:{not:"COMPLETED"}},data:{status:"COMPLETED",providerRef:orderId,completedAt:new Date(),description:"SonicPesa deposit completed",metadata:{transid,channel,reference}}});
-   if(changed.count===1)await tx.wallet.update({where:{id:entry.walletId},data:{availableBalanceTzs:{increment:entry.amountTzs},withdrawableTzs:{increment:entry.amountTzs},version:{increment:1}}});
+   if(changed.count===1){const wallet=await tx.wallet.update({where:{id:entry.walletId},data:{availableBalanceTzs:{increment:entry.amountTzs},withdrawableTzs:{increment:entry.amountTzs},version:{increment:1}}});await tx.notification.create({data:{userId:wallet.userId,title:"Deposit completed",message:"TZS "+entry.amountTzs.toLocaleString()+" has been credited to your wallet.",link:"/wallet"}});}
   });
  }
  async refreshDeposit(userId:string,reference:string){

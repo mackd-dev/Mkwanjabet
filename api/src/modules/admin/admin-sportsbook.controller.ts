@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
 import { EventStatus, MarketStatus, OutcomeStatus, Prisma, SelectionStatus } from "@prisma/client";
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { AdminAuditInterceptor } from "../audit/admin-audit.interceptor";
 import { BettingService } from "../betting/betting.service";
 
 class CreateEventDto {
@@ -37,6 +38,7 @@ class SettleMarketDto {
 }
 
 @UseGuards(JwtAuthGuard)
+@UseInterceptors(AdminAuditInterceptor)
 @Controller("admin/sportsbook")
 export class AdminSportsbookController {
   constructor(private readonly db: PrismaService, private readonly betting: BettingService) {}

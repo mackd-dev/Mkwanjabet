@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
 import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from "class-validator";
 import { BetStatus, LimitScope, Prisma, SelectionStatus, UserStatus, WalletTransactionStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { AdminAuditInterceptor } from "../audit/admin-audit.interceptor";
 import { BettingService } from "../betting/betting.service";
 import { OperatorControlsService } from "../operator-controls/operator-controls.service";
 
@@ -26,6 +27,7 @@ class SettingsDto {
 class UserStatusDto { @IsEnum(UserStatus) status!: UserStatus; }
 
 @UseGuards(JwtAuthGuard)
+@UseInterceptors(AdminAuditInterceptor)
 @Controller("admin/risk")
 export class AdminController {
   constructor(private db: PrismaService, private betting: BettingService, private controls: OperatorControlsService) {}
@@ -42,6 +44,14 @@ export class AdminController {
     return { bets, users, pendingWithdrawals, totalStakeTzs: stake._sum.stakeTzs ?? 0, totalPayoutTzs: payout._sum.payoutTzs ?? 0, openLiabilityTzs: exposure._sum.liabilityTzs ?? 0, highRisk };
   }
 
+  @Get("audit-logs")
+  async auditLogs(@CurrentUser() user: { role: string }, @Query("q") query?: string) {
+    this.admin(user);
+    const logs = await this.db.adminAuditLog.findMany({ where: query ? { OR: [{ action: { contains: query, mode: "insensitive" } }, { entityType: { contains: query, mode: "insensitive" } }, { entityId: { contains: query } }] } : {}, orderBy: { createdAt: "desc" }, take: 250 });
+    const actors = await this.db.user.findMany({ where: { id: { in: [...new Set(logs.map(x => x.actorId))] } }, select: { id: true, name: true, phone: true } });
+    const names = new Map(actors.map(x => [x.id, x]));
+    return logs.map(log => ({ ...log, actor: names.get(log.actorId) ?? null }));
+  }
   @Get("settings") settings(@CurrentUser() user: { role: string }) { this.admin(user); return this.controls.settings(); }
   @Patch("settings") async updateSettings(@CurrentUser() user: { id: string; role: string }, @Body() dto: SettingsDto) {
     this.admin(user);
@@ -83,7 +93,8 @@ export class AdminController {
       const changed = await tx.walletTransaction.updateMany({ where: { id, status: { in: ["PENDING", "PROCESSING"] } }, data: { status: "FAILED", description: "Withdrawal rejected and funds returned", metadata: { rejectedBy: user.id } } });
       if (changed.count !== 1) throw new BadRequestException("Withdrawal status changed. Refresh and try again");
       const amount = Math.abs(entry.amountTzs);
-      await tx.wallet.update({ where: { id: entry.walletId }, data: { availableBalanceTzs: { increment: amount }, withdrawableTzs: { increment: amount }, version: { increment: 1 } } });
+      const wallet = await tx.wallet.update({ where: { id: entry.walletId }, data: { availableBalanceTzs: { increment: amount }, withdrawableTzs: { increment: amount }, version: { increment: 1 } } });
+      await tx.notification.create({ data: { userId: wallet.userId, title: "Withdrawal rejected", message: "Your withdrawal " + entry.reference + " was not completed and TZS " + amount.toLocaleString() + " was returned to your wallet.", link: "/wallet" } });
       return { success: true, refundedTzs: amount };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }

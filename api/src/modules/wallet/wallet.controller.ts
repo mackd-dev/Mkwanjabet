@@ -61,7 +61,9 @@ export class WalletController {
       if (usedToday + dto.amountTzs > settings.dailyWithdrawalLimitTzs) throw new BadRequestException("Daily withdrawal limit exceeded");
       const reserved = await tx.wallet.updateMany({ where: { id: wallet.id, version: wallet.version, availableBalanceTzs: { gte: dto.amountTzs }, withdrawableTzs: { gte: dto.amountTzs } }, data: { availableBalanceTzs: { decrement: dto.amountTzs }, withdrawableTzs: { decrement: dto.amountTzs }, version: { increment: 1 } } });
       if (reserved.count !== 1) throw new BadRequestException("Insufficient withdrawable balance or wallet balance changed");
-      return tx.walletTransaction.create({ data: { walletId: wallet.id, type: "WITHDRAWAL", status: "PENDING", amountTzs: -dto.amountTzs, provider: dto.provider, reference: `WDR-${Date.now()}-${randomBytes(2).toString("hex").toUpperCase()}`, description: dto.amountTzs >= settings.manualReviewWithdrawalTzs ? "Withdrawal pending manual review" : "Withdrawal queued for review", metadata: { phone: dto.phone, manualReview: dto.amountTzs >= settings.manualReviewWithdrawalTzs } as Prisma.InputJsonValue } });
+      const entry = await tx.walletTransaction.create({ data: { walletId: wallet.id, type: "WITHDRAWAL", status: "PENDING", amountTzs: -dto.amountTzs, provider: dto.provider, reference: `WDR-${Date.now()}-${randomBytes(2).toString("hex").toUpperCase()}`, description: dto.amountTzs >= settings.manualReviewWithdrawalTzs ? "Withdrawal pending manual review" : "Withdrawal queued for review", metadata: { phone: dto.phone, manualReview: dto.amountTzs >= settings.manualReviewWithdrawalTzs } as Prisma.InputJsonValue } });
+      await tx.notification.create({ data: { userId: user.id, title: "Withdrawal requested", message: "Your TZS " + dto.amountTzs.toLocaleString() + " withdrawal is pending review.", link: "/wallet" } });
+      return entry;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 }
