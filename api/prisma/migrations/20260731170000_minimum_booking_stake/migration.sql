@@ -1,0 +1,1 @@
+ALTER TABLE "OperatorSettings" ADD COLUMN "minimumBookingStakeTzs" INTEGER NOT NULL DEFAULT 500;

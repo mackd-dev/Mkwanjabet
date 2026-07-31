@@ -97,15 +97,18 @@ export class BettingService {
     const booking = await this.loadBooking(code);
     const selections = booking.selections as unknown as BetSelectionDto[];
     const totalOdds = this.totalOdds(selections);
-    const stakeTzs = booking.stakeTzs ?? 1000;
-    const wallet = await this.db.wallet.findUnique({ where: { userId }, select: { availableBalanceTzs: true } });
-    return { code: booking.code, stakeTzs, selectionCount: selections.length, totalOdds: Number(totalOdds.toFixed(4)), potentialReturnTzs: Math.floor(stakeTzs * totalOdds), availableBalanceTzs: wallet?.availableBalanceTzs ?? 0 };
+    const [wallet, settings] = await Promise.all([this.db.wallet.findUnique({ where: { userId }, select: { availableBalanceTzs: true } }), this.controls.settings()]);
+    const minimumBookingStakeTzs = settings.minimumBookingStakeTzs ?? 500;
+    const stakeTzs = Math.max(booking.stakeTzs ?? minimumBookingStakeTzs, minimumBookingStakeTzs);
+    return { code: booking.code, stakeTzs, minimumBookingStakeTzs, selectionCount: selections.length, totalOdds: Number(totalOdds.toFixed(4)), potentialReturnTzs: Math.floor(stakeTzs * totalOdds), availableBalanceTzs: wallet?.availableBalanceTzs ?? 0 };
   }
-
   async placeBooking(userId: string, code: string, stakeTzs: number, acceptOddsChanges = true) {
-    const booking = await this.loadBooking(code);
+    const [booking, settings] = await Promise.all([this.loadBooking(code), this.controls.settings()]);
+    const minimum = settings.minimumBookingStakeTzs ?? 500;
+    if (stakeTzs < minimum) throw new BadRequestException("Minimum booking stake is TZS " + minimum.toLocaleString());
     return this.place(userId, { selections: booking.selections as unknown as BetSelectionDto[], stakeTzs, bookingCode: booking.code, acceptOddsChanges });
   }
+
   async place(userId: string, dto: PlaceBetDto) {
     const validation = await this.validate(userId, dto);
     if (!validation.valid) throw new BadRequestException({ message: "Bet validation failed", errors: validation.errors });

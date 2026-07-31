@@ -763,6 +763,7 @@ model KycProfile {
 model OperatorSettings {
   id                                  String   @id @default("default")
   bettingEnabled                      Boolean  @default(true)
+  minimumBookingStakeTzs              Int      @default(500)
   depositsEnabled                     Boolean  @default(true)
   withdrawalsEnabled                  Boolean  @default(true)
   minimumDepositTzs                   Int      @default(1000)

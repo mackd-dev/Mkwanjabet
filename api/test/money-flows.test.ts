@@ -73,3 +73,8 @@ test("booking quote hides selections before wallet-backed placement",async()=>{
  const service=new BettingService(db,controls);const quote=await service.quoteBooking("user-1","MKB-TEST");
  assert.equal(quote.selectionCount,1);assert.equal(quote.stakeTzs,2000);assert.equal("selections" in quote,false);
 });
+test("booking placement enforces the admin minimum stake",async()=>{
+ const db:any={bookingCode:{findUnique:async()=>({code:"MKB-MIN",status:"ACTIVE",expiresAt:new Date(Date.now()+60000),stakeTzs:5000,selections:[selection]})}};
+ const strict:any={settings:async()=>({minimumBookingStakeTzs:5000})};const service=new BettingService(db,strict);
+ await assert.rejects(()=>service.placeBooking("user-1","MKB-MIN",1000),/Minimum booking stake is TZS 5,000/);
+});

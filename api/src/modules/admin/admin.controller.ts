@@ -16,7 +16,7 @@ class LimitDto {
   @IsInt() @Min(1) maximumSelections!: number; @IsOptional() @IsInt() priority?: number; @IsOptional() @IsBoolean() active?: boolean;
 }
 class SettingsDto {
-  @IsBoolean() bettingEnabled!: boolean; @IsBoolean() depositsEnabled!: boolean; @IsBoolean() withdrawalsEnabled!: boolean;
+  @IsBoolean() bettingEnabled!: boolean; @IsInt() @Min(500) minimumBookingStakeTzs!: number; @IsBoolean() depositsEnabled!: boolean; @IsBoolean() withdrawalsEnabled!: boolean;
   @IsInt() @Min(1000) minimumDepositTzs!: number; @IsInt() @Min(1000) maximumDepositTzs!: number; @IsInt() @Min(1000) dailyDepositLimitTzs!: number;
   @IsInt() @Min(1000) minimumWithdrawalTzs!: number; @IsInt() @Min(1000) maximumWithdrawalTzs!: number; @IsInt() @Min(1000) dailyWithdrawalLimitTzs!: number;
   @IsInt() @Min(1000) manualReviewWithdrawalTzs!: number;
