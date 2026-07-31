@@ -56,6 +56,11 @@ export default function AccountHub({initial="wallet"}:{initial?:View}){
   void loadAccount();
   return()=>{mounted=false};
  },[router]);
+ useEffect(()=>{
+  if(!user)return;
+  const timer=window.setInterval(()=>{authenticatedApiRequest<Wallet>("/wallet/me").then(setWallet).catch(()=>{})},15000);
+  return()=>window.clearInterval(timer);
+ },[user]);
  async function pollDeposit(reference:string){
   for(let attempt=0;attempt<6;attempt++){
    await new Promise(resolve=>setTimeout(resolve,5000));
