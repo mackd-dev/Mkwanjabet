@@ -93,6 +93,19 @@ export class BettingService {
     return booking;
   }
 
+  async quoteBooking(userId: string, code: string) {
+    const booking = await this.loadBooking(code);
+    const selections = booking.selections as unknown as BetSelectionDto[];
+    const totalOdds = this.totalOdds(selections);
+    const stakeTzs = booking.stakeTzs ?? 1000;
+    const wallet = await this.db.wallet.findUnique({ where: { userId }, select: { availableBalanceTzs: true } });
+    return { code: booking.code, stakeTzs, selectionCount: selections.length, totalOdds: Number(totalOdds.toFixed(4)), potentialReturnTzs: Math.floor(stakeTzs * totalOdds), availableBalanceTzs: wallet?.availableBalanceTzs ?? 0 };
+  }
+
+  async placeBooking(userId: string, code: string, stakeTzs: number, acceptOddsChanges = true) {
+    const booking = await this.loadBooking(code);
+    return this.place(userId, { selections: booking.selections as unknown as BetSelectionDto[], stakeTzs, bookingCode: booking.code, acceptOddsChanges });
+  }
   async place(userId: string, dto: PlaceBetDto) {
     const validation = await this.validate(userId, dto);
     if (!validation.valid) throw new BadRequestException({ message: "Bet validation failed", errors: validation.errors });

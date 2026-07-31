@@ -68,3 +68,8 @@ test("duplicate SonicPesa success webhooks credit a deposit once",async()=>{
  const db:any={$transaction:async(fn:any)=>fn(tx),walletTransaction:{updateMany:async()=>({count:0})}};const config:any={get:()=>undefined};const service=new SonicPesaService(db,config);const payload={event:"payment.success",order_id:"order-1",amount:5000,currency:"TZS",status:"SUCCESS"};
  await Promise.all([service.handleWebhook(payload),service.handleWebhook(payload)]);assert.deepEqual(state,{status:"COMPLETED",available:5000,withdrawable:5000,credits:1});
 });
+test("booking quote hides selections before wallet-backed placement",async()=>{
+ const db:any={bookingCode:{findUnique:async()=>({code:"MKB-TEST",status:"ACTIVE",expiresAt:new Date(Date.now()+60000),stakeTzs:2000,selections:[selection]})},wallet:{findUnique:async()=>({availableBalanceTzs:5000})}};
+ const service=new BettingService(db,controls);const quote=await service.quoteBooking("user-1","MKB-TEST");
+ assert.equal(quote.selectionCount,1);assert.equal(quote.stakeTzs,2000);assert.equal("selections" in quote,false);
+});

@@ -120,6 +120,13 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     return()=>{mounted=false};
   },[]);
 
+  useEffect(()=>{
+    if(sessionLoading||!user)return;
+    const params=new URLSearchParams(window.location.search);const code=params.get("booking");
+    if(!code)return;
+    window.history.replaceState({},"","/sports");
+    void loadBookingCode(code);
+  },[sessionLoading,user]);
   const sportOptions=useMemo(()=>Array.from(new Set(events.map(event=>event.sport))).map(name=>({name,icon:sportIcons[name]??"•",count:events.filter(event=>event.sport===name).length})),[events]);
   const competitionOptions=useMemo(()=>Array.from(new Set(events.filter(event=>event.sport===sport).map(event=>event.league))).slice(0,8),[events,sport]);
   const visible=events.filter(e=>{
@@ -155,22 +162,38 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
       setValidation(result);setSlipNotice(result.message);
     } catch(error){setSlipNotice(apiMessage(error));}finally{setSlipBusy(false)}
   };
+  const depositForBet=(required:number,code?:string)=>{
+    const available=wallet?.availableBalanceTzs??0;
+    const deposit=Math.max(1000,required-available);
+    localStorage.setItem("mkwanjabet_pending_bet",JSON.stringify({bookingCode:code||null,stakeTzs:required,selections:code?null:slip}));
+    window.location.href="/wallet/deposit?amount="+deposit+"&stake="+required+(code?"&booking="+encodeURIComponent(code):"&resume=1");
+  };
   const placeBet=async()=>{
-    if(!user){window.location.href=`/login?next=${encodeURIComponent("/sports")}`;return;}
+    if(!user){window.location.href="/login?next="+encodeURIComponent("/sports");return;}
     if(!slip.length)return;
+    if((wallet?.availableBalanceTzs??0)<stake){if(window.confirm("Your balance is not enough for this stake. Deposit funds now and return to this bet?"))depositForBet(stake);return;}
+    if(!window.confirm("Confirm this TZS "+stake.toLocaleString()+" stake? The amount will be deducted from your wallet."))return;
+    setSlipBusy(true);setSlipNotice("");
+    try{const bet=await authenticatedApiRequest<PlacedBet>("/betting/place",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake,acceptOddsChanges:oddsAccepted})});const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);setSlip([]);setValidation(null);setBookingCode("");setBookingInput("");localStorage.removeItem("mkwanjabet_pending_bet");setSlipNotice("Bet placed. Ticket "+bet.ticketCode)}
+    catch(error){const msg=apiMessage(error);setValidation(null);setSlipNotice(msg);if(msg.toLowerCase().includes("insufficient"))depositForBet(stake)}finally{setSlipBusy(false)}
+  };
+  const loadBookingCode=async(rawCode:string)=>{
+    const code=rawCode.trim().toUpperCase();if(!code)return;
+    if(!user){window.location.href="/login?next="+encodeURIComponent("/sports?booking="+code);return;}
     setSlipBusy(true);setSlipNotice("");
     try{
-      const bet=await authenticatedApiRequest<PlacedBet>("/betting/place",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake,bookingCode:bookingCode||undefined,acceptOddsChanges:oddsAccepted})});
-      const balance=await authenticatedApiRequest<Wallet>("/wallet/me");
-      setWallet(balance);setSlip([]);setValidation(null);setBookingCode("");setBookingInput("");setSlipNotice(`Bet placed. Ticket ${bet.ticketCode}`);
-    } catch(error){setValidation(null);setSlipNotice(apiMessage(error));}finally{setSlipBusy(false)}
+      const quote=await authenticatedApiRequest<{code:string;stakeTzs:number;selectionCount:number;totalOdds:number;potentialReturnTzs:number;availableBalanceTzs:number}>("/betting/booking/"+encodeURIComponent(code)+"/quote");
+      const entered=window.prompt("Enter the stake you want to use for this booking (TZS).",String(quote.stakeTzs));if(entered===null)return;
+      const chosenStake=Number(entered);if(!Number.isInteger(chosenStake)||chosenStake<500){setSlipNotice("Enter a valid stake of at least TZS 500.");return;}
+      setBookingCode(quote.code);setBookingInput(quote.code);setStake(chosenStake);setSlip([]);
+      if(quote.availableBalanceTzs<chosenStake){setSlipNotice("Booking "+quote.code+" needs a TZS "+chosenStake.toLocaleString()+" stake. Deposit first to continue.");if(window.confirm("Insufficient balance. Deposit now? Your deposit will remain in your wallet until you confirm this booking-code bet."))depositForBet(chosenStake,quote.code);return;}
+      const potentialReturn=Math.floor(chosenStake*quote.totalOdds);
+      if(!window.confirm("Place booking "+quote.code+" with "+quote.selectionCount+" selections for TZS "+chosenStake.toLocaleString()+"? Potential return: TZS "+potentialReturn.toLocaleString()+". The stake will be deducted immediately.")){setSlipNotice("Booking loaded. Placement cancelled before any funds were deducted.");return;}
+      const bet=await authenticatedApiRequest<PlacedBet>("/betting/booking/"+encodeURIComponent(quote.code)+"/place",{method:"POST",body:JSON.stringify({stakeTzs:chosenStake,acceptOddsChanges:true})});const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);setBookingCode("");setBookingInput("");localStorage.removeItem("mkwanjabet_pending_bet");setSlipNotice("Booking placed. Ticket "+bet.ticketCode);
+
+    }catch(error){setSlipNotice(apiMessage(error))}finally{setSlipBusy(false)}
   };
-  const loadBooking=async()=>{
-    if(!bookingInput.trim())return;
-    setSlipBusy(true);setSlipNotice("");
-    try{const r=await apiRequest<{code:string;stakeTzs?:number;selections:Array<{eventId:string;sport?:string;league?:string;marketId?:string;outcomeId?:string;matchName:string;marketName:string;selection:string;odds:number}>}>(`/betting/booking/${bookingInput.trim()}`);setSlip(r.selections.map((x,i)=>({id:`${x.eventId}-${x.outcomeId ?? x.selection}-${i}`,eventId:x.eventId,sport:x.sport ?? "Football",league:x.league ?? "Unknown",match:x.matchName,marketId:x.marketId ?? "legacy-market",market:x.marketName,outcomeId:x.outcomeId ?? x.selection,pick:x.selection,odds:Number(x.odds)})));if(r.stakeTzs)setStake(r.stakeTzs);setBookingCode(r.code);setSlipNotice(`Booking ${r.code} restored`)}
-    catch{setSlipNotice("Booking code was not found or has expired.")}finally{setSlipBusy(false)}
-  };
+  const loadBooking=()=>loadBookingCode(bookingInput);
 
   const toggle=(e:Event,m:Market)=>{
     const id=`${e.id}-${m.outcomeId}`;

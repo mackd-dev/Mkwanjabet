@@ -24,3 +24,8 @@ export class PlaceBetDto extends SaveBookingDto {
   @IsOptional() @IsString() bookingCode?: string;
   @IsOptional() @IsBoolean() acceptOddsChanges?: boolean;
 }
+
+export class PlaceBookingDto {
+  @IsInt() @Min(1) stakeTzs!: number;
+  @IsOptional() @IsBoolean() acceptOddsChanges?: boolean;
+}
