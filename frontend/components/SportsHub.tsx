@@ -47,7 +47,7 @@ function apiMessage(error: unknown) {
   }
   return "Request could not be completed. Please try again.";
 }
-const sportIcons: Record<string,string> = { Football:"⚽", Basketball:"🏀", Tennis:"🎾", Volleyball:"🏐", "Ice Hockey":"◉", "Table Tennis":"◌" };
+const sportIcons: Record<string,string> = { Football:"⚽", Basketball:"🏀", Tennis:"🎾", Baseball:"◆", Cricket:"●", Volleyball:"🏐", "Ice Hockey":"◉", "Table Tennis":"◌" };
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
@@ -86,6 +86,8 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [timeFilter,setTimeFilter]=useState<"all"|"today"|"tomorrow"|"soon">("all");
   const [events,setEvents]=useState<Event[]>([]);
   const [eventsNotice,setEventsNotice]=useState("");
+  const [eventsLoading,setEventsLoading]=useState(true);
+  const [eventsReload,setEventsReload]=useState(0);
   const [slip,setSlip]=useState<Selection[]>([]);
   const [stake,setStake]=useState(5000);
   const [mobileSlip,setMobileSlip]=useState(false);
@@ -105,16 +107,17 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
 
   useEffect(()=>{
     let mounted=true;
+    setEventsLoading(true);setEventsNotice("");
     apiRequest<ApiEvent[]>("/events").then(data=>{
       if(!mounted)return;
       const next=data.map(toEvent).filter(event=>event.markets.length);
-      if(next.length){setEvents(next);setEventsNotice("");}
+      if(next.length){setEvents(next);setSport(current=>next.some(event=>event.sport===current)?current:next[0].sport);setEventsNotice("");}
       else setEventsNotice("No live sportsbook events are available right now.");
     }).catch(()=>{
       if(mounted){setEvents([]);setEventsNotice("Sportsbook events are temporarily unavailable.");}
-    });
+    }).finally(()=>{if(mounted)setEventsLoading(false)});
     return()=>{mounted=false};
-  },[]);
+  },[eventsReload]);
   useEffect(()=>{
     let mounted=true;
     getCurrentUser().then(current=>{
@@ -263,10 +266,10 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
         <div className="promo-cards"><article><span>LIVE</span><b>Current event odds</b><small>Markets loaded from the sportsbook API</small></article><article><span>SAFE</span><b>Wallet-backed tickets</b><small>Every stake and payout is recorded</small></article><article><span>FAST</span><b>Instant booking</b><small>Save and restore a ticket by code</small></article></div>
         <div className="sports-toolbar"><div><button onClick={()=>setTab("prematch")} className={tab==="prematch"?"active":""}>Pre-match</button><button onClick={()=>setTab("live")} className={tab==="live"?"active":""}><i/> Live now</button></div><label><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search team, league or country"/></label></div>
         <div className="quick-filters">{[["all","All"],["today","Today"],["tomorrow","Tomorrow"],["soon","Starting soon"]].map(([key,label])=><button onClick={()=>setTimeFilter(key as typeof timeFilter)} className={timeFilter===key?"active":""} key={key}>{label}</button>)}</div>
-        {eventsNotice&&<div className="sports-data-notice">{eventsNotice}</div>}
-        <div className="market-labels"><span>{tab==="live"?"Live events":"Featured events"}</span><div><b>1</b><b>X</b><b>2</b><b>More</b></div></div>
+        {eventsLoading&&<div className="sports-data-notice">Loading live sportsbook events...</div>}{!eventsLoading&&eventsNotice&&<div className="sports-data-notice">{eventsNotice} <button onClick={()=>setEventsReload(value=>value+1)}>Try again</button></div>}
+        <div className="market-labels"><span>{tab==="live"?"Live events":"Pre-match events"}</span><div><b>1</b><b>X</b><b>2</b><b>More</b></div></div>
         <div className="event-list" id="events">
-          {visible.length===0&&<div className="no-events"><b>No events found</b><span>Try another sport, tab or search.</span></div>}
+          {!eventsLoading&&visible.length===0&&<div className="no-events"><b>No events found</b><span>Try another sport, tab or search.</span></div>}
           {visible.map(e=><article className="event-card" key={e.id}>
             <div className="event-meta"><small><b>{e.country}</b> · {e.league}</small><div><button>☆</button><time>{e.live?<><i/> LIVE {e.minute}</>:formatTime(e.time)}</time></div></div>
             <div className="event-body"><Link className="teams" href={`/sports/match/${e.id}`}><div><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"}</small></Link><div className="odds-grid">{e.markets.map(m=>{const id=`${e.id}-${m.outcomeId}`;return <button key={m.outcomeId} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>})}<button className="more">+{e.more}</button></div></div>

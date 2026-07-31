@@ -44,7 +44,7 @@ export class SportsbookService {
     const where: Prisma.EventWhereInput = {
       sportId: filters.sportId,
       competitionId: filters.competitionId,
-      status: this.parseStatus(filters.status),
+      status: filters.status ? this.parseStatus(filters.status) : { in: [EventStatus.SCHEDULED, EventStatus.LIVE] },
       startsAt: this.dateRange(filters.from, filters.to),
     };
 
@@ -58,7 +58,7 @@ export class SportsbookService {
         season: true,
         homeTeam: true,
         awayTeam: true,
-        markets: { where: { status: { not: "CLOSED" } }, ...marketInclude },
+        markets: { where: { status: "OPEN" }, ...marketInclude },
       },
     });
   }
@@ -73,7 +73,7 @@ export class SportsbookService {
         season: true,
         homeTeam: true,
         awayTeam: true,
-        markets: marketInclude,
+        markets: { where: { status: "OPEN" }, ...marketInclude },
       },
     });
     if (!event) throw new NotFoundException("Event not found");

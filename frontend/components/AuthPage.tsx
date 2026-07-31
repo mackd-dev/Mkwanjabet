@@ -65,9 +65,9 @@ export default function AuthPage({ mode }: Props) {
   const message = useMemo(() => {
     if (!submitted) return "";
     if (isLogin) return "Umeingia kwenye akaunti yako. Tunakupeleka kwenye dashibodi.";
-    if (isRegister) return "Demo: taarifa zimepokelewa. Hatua inayofuata ni uthibitisho wa akaunti.";
-    if (isForgot) return "Demo: namba ya uthibitisho imetumwa.";
-    return "Demo: akaunti imethibitishwa kwa mafanikio.";
+    if (isRegister) return "Account created successfully.";
+    if (isForgot) return "Password recovery is not available yet. Contact support for account recovery.";
+    return "Verification is not available yet.";
   }, [submitted, isLogin, isRegister, isForgot]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
