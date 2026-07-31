@@ -760,6 +760,27 @@ model KycProfile {
   @@index([status, submittedAt])
 }
 
+model OperatorSettings {
+  id                                  String   @id @default("default")
+  bettingEnabled                      Boolean  @default(true)
+  depositsEnabled                     Boolean  @default(true)
+  withdrawalsEnabled                  Boolean  @default(true)
+  minimumDepositTzs                   Int      @default(1000)
+  maximumDepositTzs                   Int      @default(10000000)
+  dailyDepositLimitTzs                Int      @default(20000000)
+  minimumWithdrawalTzs                Int      @default(1000)
+  maximumWithdrawalTzs                Int      @default(5000000)
+  dailyWithdrawalLimitTzs             Int      @default(10000000)
+  manualReviewWithdrawalTzs           Int      @default(500000)
+  requirePhoneVerificationForBetting  Boolean  @default(false)
+  requirePhoneVerificationForWithdraw Boolean  @default(false)
+  maximumUnverifiedStakeTzs           Int      @default(50000)
+  maximumUnverifiedPayoutTzs          Int      @default(500000)
+  maintenanceMessage                  String?
+  updatedBy                           String?
+  createdAt                           DateTime @default(now())
+  updatedAt                           DateTime @updatedAt
+}
 model ResponsibleGamingLimit {
   id          String      @id @default(cuid())
   userId      String

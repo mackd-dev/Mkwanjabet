@@ -3,10 +3,11 @@ import { BetStatus, LimitScope, Prisma, SelectionStatus, WalletTransactionType }
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BetSelectionDto, PlaceBetDto, SaveBookingDto } from "./dto/betting.dto";
+import { OperatorControlsService } from "../operator-controls/operator-controls.service";
 
 @Injectable()
 export class BettingService {
-  constructor(private readonly db: PrismaService) {}
+  constructor(private readonly db: PrismaService, private readonly controls: OperatorControlsService) {}
 
   private bookingCode() { return `MKB-${randomBytes(3).toString("hex").toUpperCase()}-${randomBytes(2).toString("hex").toUpperCase()}`; }
   private ticketCode() { return `MB-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString("hex").toUpperCase()}`; }
@@ -46,6 +47,11 @@ export class BettingService {
   }
 
   async validate(userId: string, dto: PlaceBetDto) {
+    const [settings, user] = await Promise.all([
+      this.controls.settings(),
+      this.db.user.findUnique({ where: { id: userId }, select: { phoneVerifiedAt: true } }),
+    ]);
+    if (!settings.bettingEnabled) throw new BadRequestException(settings.maintenanceMessage || "Betting is temporarily unavailable");
     const selections = await this.canonicalSelections(dto.selections, dto.acceptOddsChanges);
     this.assertSelections(selections);
     const limit = await this.resolveLimit(userId, selections);
@@ -57,6 +63,9 @@ export class BettingService {
     if (dto.stakeTzs > limit.maximumStakeTzs) errors.push(`Maximum stake is TZS ${limit.maximumStakeTzs.toLocaleString()}`);
     if (odds > Number(limit.maximumOdds)) errors.push(`Maximum total odds is ${Number(limit.maximumOdds)}`);
     if (payout > limit.maximumPayoutTzs) errors.push(`Maximum payout is TZS ${limit.maximumPayoutTzs.toLocaleString()}`);
+    if (settings.requirePhoneVerificationForBetting && !user?.phoneVerifiedAt && (dto.stakeTzs > settings.maximumUnverifiedStakeTzs || payout > settings.maximumUnverifiedPayoutTzs)) {
+      errors.push("Additional account verification is required for this ticket size");
+    }
     const wallet = await this.db.wallet.findUnique({ where: { userId } });
     if (!wallet || wallet.availableBalanceTzs < dto.stakeTzs) errors.push("Insufficient wallet balance");
     return { valid: errors.length === 0, errors, totalOdds: Number(odds.toFixed(4)), potentialReturnTzs: payout, limit, selections };

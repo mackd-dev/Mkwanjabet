@@ -17,13 +17,14 @@ import { BookingCodesModule } from "./modules/booking-codes/booking-codes.module
 import { WalletModule } from "./modules/wallet/wallet.module";
 import { BettingModule } from "./modules/betting/betting.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { OperatorControlsModule } from "./modules/operator-controls/operator-controls.module";
 
 @Module({ imports: [
   ConfigModule.forRoot({ isGlobal: true }),
   ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]), PrismaModule,
   HealthModule, AuthModule, PicksModule, ResultsModule, PlansModule, UsersModule,
   SavedPicksModule, NotificationsModule, SubscriptionsModule, PaymentsModule,
-  SportsbookModule, BookingCodesModule, WalletModule, BettingModule, AdminModule,
+  SportsbookModule, BookingCodesModule, OperatorControlsModule, WalletModule, BettingModule, AdminModule,
 ]})
 export class AppModule {}
 
