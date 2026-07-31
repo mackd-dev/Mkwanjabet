@@ -33,6 +33,7 @@ type ApiEvent = {
 type ValidationPreview = { status: "READY"|"WARNING"|"INVALID"; valid: boolean; errors: string[]; warnings: string[]; totalOdds: number; potentialReturnTzs: number; message: string };
 type Wallet = { availableBalanceTzs: number };
 type PlacedBet = { id: string; ticketCode: string; potentialReturnTzs: number };
+type BookingQuote = { code:string; stakeTzs:number; selectionCount:number; totalOdds:number; potentialReturnTzs:number; availableBalanceTzs:number };
 function apiMessage(error: unknown) {
   if (error instanceof ApiError && error.payload && typeof error.payload === "object") {
     const payload = error.payload as { message?: unknown; errors?: unknown };
@@ -91,6 +92,9 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [oddsAccepted,setOddsAccepted]=useState(true);
   const [bookingInput,setBookingInput]=useState("");
   const [bookingCode,setBookingCode]=useState("");
+  const [bookingQuote,setBookingQuote]=useState<BookingQuote|null>(null);
+  const [bookingStake,setBookingStake]=useState("");
+  const [bookingModalError,setBookingModalError]=useState("");
   const [slipNotice,setSlipNotice]=useState("");
   const [slipBusy,setSlipBusy]=useState(false);
   const [validation,setValidation]=useState<ValidationPreview|null>(null);
@@ -182,18 +186,23 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     if(!user){window.location.href="/login?next="+encodeURIComponent("/sports?booking="+code);return;}
     setSlipBusy(true);setSlipNotice("");
     try{
-      const quote=await authenticatedApiRequest<{code:string;stakeTzs:number;selectionCount:number;totalOdds:number;potentialReturnTzs:number;availableBalanceTzs:number}>("/betting/booking/"+encodeURIComponent(code)+"/quote");
-      const entered=window.prompt("Enter the stake you want to use for this booking (TZS).",String(quote.stakeTzs));if(entered===null)return;
-      const chosenStake=Number(entered);if(!Number.isInteger(chosenStake)||chosenStake<500){setSlipNotice("Enter a valid stake of at least TZS 500.");return;}
-      setBookingCode(quote.code);setBookingInput(quote.code);setStake(chosenStake);setSlip([]);
-      if(quote.availableBalanceTzs<chosenStake){setSlipNotice("Booking "+quote.code+" needs a TZS "+chosenStake.toLocaleString()+" stake. Deposit first to continue.");if(window.confirm("Insufficient balance. Deposit now? Your deposit will remain in your wallet until you confirm this booking-code bet."))depositForBet(chosenStake,quote.code);return;}
-      const potentialReturn=Math.floor(chosenStake*quote.totalOdds);
-      if(!window.confirm("Place booking "+quote.code+" with "+quote.selectionCount+" selections for TZS "+chosenStake.toLocaleString()+"? Potential return: TZS "+potentialReturn.toLocaleString()+". The stake will be deducted immediately.")){setSlipNotice("Booking loaded. Placement cancelled before any funds were deducted.");return;}
-      const bet=await authenticatedApiRequest<PlacedBet>("/betting/booking/"+encodeURIComponent(quote.code)+"/place",{method:"POST",body:JSON.stringify({stakeTzs:chosenStake,acceptOddsChanges:true})});const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);setBookingCode("");setBookingInput("");localStorage.removeItem("mkwanjabet_pending_bet");setSlipNotice("Booking placed. Ticket "+bet.ticketCode);
-
+      const quote=await authenticatedApiRequest<BookingQuote>("/betting/booking/"+encodeURIComponent(code)+"/quote");
+      setBookingCode(quote.code);setBookingInput(quote.code);setBookingStake(String(quote.stakeTzs));setBookingModalError("");setBookingQuote(quote);setSlip([]);
     }catch(error){setSlipNotice(apiMessage(error))}finally{setSlipBusy(false)}
   };
+  const confirmBooking=async()=>{
+    if(!bookingQuote)return;
+    const chosenStake=Number(bookingStake);
+    if(!Number.isInteger(chosenStake)||chosenStake<500){setBookingModalError("Enter a valid stake of at least TZS 500.");return;}
+    if(bookingQuote.availableBalanceTzs<chosenStake){depositForBet(chosenStake,bookingQuote.code);return;}
+    setSlipBusy(true);setBookingModalError("");
+    try{
+      const bet=await authenticatedApiRequest<PlacedBet>("/betting/booking/"+encodeURIComponent(bookingQuote.code)+"/place",{method:"POST",body:JSON.stringify({stakeTzs:chosenStake,acceptOddsChanges:true})});
+      const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);setBookingQuote(null);setBookingCode("");setBookingInput("");localStorage.removeItem("mkwanjabet_pending_bet");setSlipNotice("Booking placed. Ticket "+bet.ticketCode);
+    }catch(error){setBookingModalError(apiMessage(error))}finally{setSlipBusy(false)}
+  };
   const loadBooking=()=>loadBookingCode(bookingInput);
+
 
   const toggle=(e:Event,m:Market)=>{
     const id=`${e.id}-${m.outcomeId}`;
@@ -221,6 +230,8 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   </aside>;
 
   return <main className="sports-shell">
+    {bookingQuote&&<div className="booking-modal-backdrop" role="presentation" onMouseDown={()=>!slipBusy&&setBookingQuote(null)}><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-modal-title" onMouseDown={e=>e.stopPropagation()}><header><div><span>SECURE BOOKING</span><h2 id="booking-modal-title">Confirm your ticket</h2></div><button aria-label="Close" onClick={()=>setBookingQuote(null)} disabled={slipBusy}>×</button></header><div className="booking-modal-code"><span>Booking code</span><strong>{bookingQuote.code}</strong><small>Picks remain hidden until this wallet-backed ticket is accepted.</small></div><div className="booking-modal-stats"><div><span>Selections</span><b>{bookingQuote.selectionCount}</b></div><div><span>Total odds</span><b>{bookingQuote.totalOdds.toFixed(2)}</b></div><div><span>Potential return</span><b>TZS {Math.floor((Number(bookingStake)||0)*bookingQuote.totalOdds).toLocaleString()}</b></div></div><label className="booking-modal-stake"><span>Your stake</span><div><b>TZS</b><input autoFocus type="number" min="500" step="500" value={bookingStake} onChange={e=>{setBookingStake(e.target.value);setBookingModalError("")}}/></div></label><div className="booking-modal-balance"><span>Available balance</span><b>TZS {bookingQuote.availableBalanceTzs.toLocaleString()}</b></div>{bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)&&<div className="booking-modal-warning"><b>Deposit required</b><span>You need TZS {Math.max(0,(Number(bookingStake)||0)-bookingQuote.availableBalanceTzs).toLocaleString()} more. Deposited funds stay in your wallet until you return and confirm.</span></div>}{bookingModalError&&<div className="booking-modal-error">{bookingModalError}</div>}<footer><button className="secondary" onClick={()=>setBookingQuote(null)} disabled={slipBusy}>Cancel</button><button className={bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)?"deposit":"confirm"} onClick={confirmBooking} disabled={slipBusy}>{slipBusy?"Processing...":bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)?"Deposit funds":"Confirm & place bet"}</button></footer><p>Current odds, account limits, and wallet balance are revalidated before acceptance.</p></section></div>}
+
     <header className="sports-topbar">
       <Link className="sports-brand" href="/"><span>M</span>Mkwanja<b>Bet</b></Link>
       <nav><Link className={tab==="prematch"?"active":""} href="/sports">Sports</Link><Link className={tab==="live"?"active":""} href="/live">Live</Link><Link href="/results">Results</Link><Link href="/responsible-play">Responsible play</Link></nav>
