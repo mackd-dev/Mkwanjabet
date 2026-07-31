@@ -92,6 +92,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [oddsAccepted,setOddsAccepted]=useState(true);
   const [bookingInput,setBookingInput]=useState("");
   const [bookingCode,setBookingCode]=useState("");
+  const [bookingCopied,setBookingCopied]=useState(false);
   const [bookingQuote,setBookingQuote]=useState<BookingQuote|null>(null);
   const [bookingStake,setBookingStake]=useState("");
   const [bookingModalError,setBookingModalError]=useState("");
@@ -202,6 +203,14 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     }catch(error){setBookingModalError(apiMessage(error))}finally{setSlipBusy(false)}
   };
   const loadBooking=()=>loadBookingCode(bookingInput);
+  const copyBookingCode=async()=>{
+    if(!bookingCode)return;
+    try{
+      if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(bookingCode);
+      else{const input=document.createElement("textarea");input.value=bookingCode;input.setAttribute("readonly","");input.style.position="fixed";input.style.opacity="0";document.body.appendChild(input);input.select();if(!document.execCommand("copy"))throw new Error("Copy failed");document.body.removeChild(input);}
+      setBookingCopied(true);setSlipNotice("Booking code copied.");window.setTimeout(()=>setBookingCopied(false),2000);
+    }catch{setBookingCopied(false);setSlipNotice("Could not copy automatically. Select the booking code and copy it manually.");}
+  };
 
 
   const toggle=(e:Event,m:Market)=>{
@@ -223,7 +232,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
         <label className="odds-change"><input type="checkbox" checked={oddsAccepted} onChange={e=>setOddsAccepted(e.target.checked)}/> Accept odds changes</label>
         <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={validateTicket}>{slipBusy?"Working...":"Validate ticket"}</button>
         {validation&&<div className={`ticket-validation ${validation.status.toLowerCase()}`}><b>{validation.status}</b><span>{validation.message}</span>{[...validation.errors,...validation.warnings].slice(0,3).map(x=><small key={x}>{x}</small>)}</div>}
-        <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={saveBooking}>{slipBusy?"Working...":"Save booking code"}</button>{bookingCode&&<div className="saved-code"><span>Booking code</span><b>{bookingCode}</b><button onClick={()=>navigator.clipboard?.writeText(bookingCode)}>Copy</button></div>}<button className="place-bet-btn" disabled={slipBusy||!slip.length} onClick={placeBet}>{slipBusy?"Working...":user?"Place bet":"Log in to place bet"}</button>
+        <button className="booking-save-btn" disabled={slipBusy||!slip.length} onClick={saveBooking}>{slipBusy?"Working...":"Save booking code"}</button>{bookingCode&&<div className="saved-code"><span>Booking code</span><b>{bookingCode}</b><button onClick={copyBookingCode}>{bookingCopied?"Copied":"Copy"}</button></div>}<button className="place-bet-btn" disabled={slipBusy||!slip.length} onClick={placeBet}>{slipBusy?"Working...":user?"Place bet":"Log in to place bet"}</button>
         <small>18+ · Play responsibly. Stakes are deducted from your wallet when a ticket is accepted.</small>
       </div>
     </>}

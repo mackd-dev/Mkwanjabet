@@ -1,0 +1,1 @@
+import { Module } from "@nestjs/common";import { OddsFeedController } from "./odds-feed.controller";import { OddsFeedService } from "./odds-feed.service";@Module({controllers:[OddsFeedController],providers:[OddsFeedService]}) export class OddsFeedModule {}
