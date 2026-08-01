@@ -1,0 +1,1 @@
+import { Module } from "@nestjs/common"; import { ResponsibleGamingController } from "./responsible-gaming.controller"; @Module({controllers:[ResponsibleGamingController]}) export class ResponsibleGamingModule {}

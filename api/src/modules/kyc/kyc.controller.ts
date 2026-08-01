@@ -1,0 +1,5 @@
+import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { IsDateString, IsString, Length } from "class-validator";
+import { PrismaService } from "../../prisma/prisma.service"; import { CurrentUser } from "../auth/current-user.decorator"; import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+class SubmitKycDto{@IsString()@Length(20,20)nidaNumber!:string;@IsDateString()dateOfBirth!:string;@IsString()frontImageUrl!:string;@IsString()backImageUrl!:string;@IsString()selfieImageUrl!:string}
+@UseGuards(JwtAuthGuard) @Controller("kyc") export class KycController{constructor(private db:PrismaService){}@Get("me")get(@CurrentUser()u:{id:string}){return this.db.kycProfile.findUnique({where:{userId:u.id}})}@Post("submit")submit(@CurrentUser()u:{id:string},@Body()d:SubmitKycDto){return this.db.kycProfile.upsert({where:{userId:u.id},update:{...d,dateOfBirth:new Date(d.dateOfBirth),status:"PENDING",submittedAt:new Date()},create:{userId:u.id,...d,dateOfBirth:new Date(d.dateOfBirth),status:"PENDING",submittedAt:new Date()}})}}

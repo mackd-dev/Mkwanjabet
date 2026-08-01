@@ -9,6 +9,7 @@ type Market = { id: string; outcomeId: string; label: string; name: string; odds
 type Event = {
   id: string; sport: string; country: string; league: string; time: string; minute?: string;
   home: string; away: string; score?: string; markets: Market[]; more: number; live?: boolean;
+  homeLogo?: string; awayLogo?: string; leagueLogo?: string; bannerLogo?: string;
 };
 type Selection = {
   id: string;
@@ -27,7 +28,8 @@ type ApiMarket = { id: string; key: string; name: string; outcomes: ApiOutcome[]
 type ApiEvent = {
   id: string; slug: string; name: string; startsAt: string; status: string; liveClock?: string | null;
   homeTeamName?: string | null; awayTeamName?: string | null; homeScore?: number | null; awayScore?: number | null;
-  sport?: { name: string } | null; country?: { name: string } | null; competition?: { name: string } | null;
+  sport?: { name: string } | null; country?: { name: string } | null; competition?: { name: string; logoUrl?: string | null } | null;
+  homeTeam?: { logoUrl?: string | null } | null; awayTeam?: { logoUrl?: string | null } | null;
   markets: ApiMarket[];
 };
 type ValidationPreview = { status: "READY"|"WARNING"|"INVALID"; valid: boolean; errors: string[]; warnings: string[]; totalOdds: number; potentialReturnTzs: number; message: string };
@@ -76,8 +78,14 @@ function toEvent(event: ApiEvent): Event {
     markets,
     more: event.markets.reduce((total, market) => total + market.outcomes.length, 0),
     live,
+    homeLogo: event.homeTeam?.logoUrl ?? undefined,
+    awayLogo: event.awayTeam?.logoUrl ?? undefined,
+    leagueLogo: event.competition?.logoUrl ?? undefined,
+    bannerLogo: event.competition?.logoUrl ?? event.homeTeam?.logoUrl ?? event.awayTeam?.logoUrl ?? undefined,
   };
 }
+
+function TeamLogo({src,label}:{src?:string;label:string}){return src?<img className="team-logo" src={src} alt={`${label} logo`} loading="lazy"/>:<i className="team-logo fallback">{label.slice(0,3).toUpperCase()}</i>}
 
 export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch"|"live"}={}){
   const [tab,setTab]=useState<"prematch"|"live">(initialTab);
@@ -110,7 +118,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     setEventsLoading(true);setEventsNotice("");
     apiRequest<ApiEvent[]>("/events").then(data=>{
       if(!mounted)return;
-      const next=data.map(toEvent).filter(event=>event.markets.length);
+      const next=data.map(toEvent);
       if(next.length){setEvents(next);setSport(current=>next.some(event=>event.sport===current)?current:next[0].sport);setEventsNotice("");}
       else setEventsNotice("No live sportsbook events are available right now.");
     }).catch(()=>{
@@ -145,6 +153,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     const timeMatch=timeFilter==="all"||e.live||(timeFilter==="today"&&eventDate>=startOfToday&&eventDate<startOfTomorrow)||(timeFilter==="tomorrow"&&eventDate>=startOfTomorrow&&eventDate<endOfTomorrow)||(timeFilter==="soon"&&eventDate>=now&&eventDate.getTime()-now.getTime()<=3*60*60*1000);
     return tabMatch && sportMatch && timeMatch && q.includes(query.toLowerCase());
   });
+  const featuredEvent=visible[0]??events[0];
   const totalOdds=useMemo(()=>slip.reduce((n,s)=>n*s.odds,1),[slip]);
   const potential=stake*totalOdds;
 
@@ -262,7 +271,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">
-        <div className="sports-hero"><div><span>MKWANJABET SPORTSBOOK</span><h1>Live odds.<br/>One secure wallet.</h1><p>Browse current events, build your ticket and track every wallet-backed bet from one account.</p><div className="hero-actions-mini"><Link href="#events">Explore events</Link><Link href="/responsible-play">Play responsibly</Link></div></div><div className="hero-jackpot"><small>YOUR ACCOUNT</small><b>{user?`TZS ${(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}`:"Start betting"}</b><span>{user?"Available wallet balance":"Create an account to fund your wallet and place tickets"}</span><Link href={user?"/wallet/deposit":"/register"}>{user?"Deposit funds":"Register now"} →</Link></div></div>
+        <div className="sports-hero api-football-hero"><div><span>API-FOOTBALL LIVE FEED</span><h1>Real fixtures.<br/>Real club visuals.</h1><p>{featuredEvent?`${featuredEvent.league}: ${featuredEvent.home} vs ${featuredEvent.away}`:"Browse current events, build your ticket and track every wallet-backed bet from one account."}</p><div className="hero-actions-mini"><Link href="#events">Explore events</Link><Link href="/responsible-play">Play responsibly</Link></div></div><div className="feed-banner">{featuredEvent?.bannerLogo&&<img src={featuredEvent.bannerLogo} alt=""/>}<div className="feed-banner-teams"><TeamLogo src={featuredEvent?.homeLogo} label={featuredEvent?.home??"Home"}/><span>{featuredEvent?.live?featuredEvent.score??"LIVE":"VS"}</span><TeamLogo src={featuredEvent?.awayLogo} label={featuredEvent?.away??"Away"}/></div><small>{featuredEvent?`${featuredEvent.country} · ${featuredEvent.league}`:"Waiting for API-Football fixtures"}</small></div><div className="hero-jackpot"><small>YOUR ACCOUNT</small><b>{user?`TZS ${(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}`:"Start betting"}</b><span>{user?"Available wallet balance":"Create an account to fund your wallet and place tickets"}</span><Link href={user?"/wallet/deposit":"/register"}>{user?"Deposit funds":"Register now"} →</Link></div></div>
         <div className="promo-cards"><article><span>LIVE</span><b>Current event odds</b><small>Markets loaded from the sportsbook API</small></article><article><span>SAFE</span><b>Wallet-backed tickets</b><small>Every stake and payout is recorded</small></article><article><span>FAST</span><b>Instant booking</b><small>Save and restore a ticket by code</small></article></div>
         <div className="sports-toolbar"><div><button onClick={()=>setTab("prematch")} className={tab==="prematch"?"active":""}>Pre-match</button><button onClick={()=>setTab("live")} className={tab==="live"?"active":""}><i/> Live now</button></div><label><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search team, league or country"/></label></div>
         <div className="quick-filters">{[["all","All"],["today","Today"],["tomorrow","Tomorrow"],["soon","Starting soon"]].map(([key,label])=><button onClick={()=>setTimeFilter(key as typeof timeFilter)} className={timeFilter===key?"active":""} key={key}>{label}</button>)}</div>
@@ -272,8 +281,8 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
           {!eventsLoading&&visible.length===0&&<div className="no-events"><b>No events found</b><span>Try another sport, tab or search.</span></div>}
           {visible.map(e=><article className="event-card" key={e.id}>
             <div className="event-meta"><small><b>{e.country}</b> · {e.league}</small><div><button>☆</button><time>{e.live?<><i/> LIVE {e.minute}</>:formatTime(e.time)}</time></div></div>
-            <div className="event-body"><Link className="teams" href={`/sports/match/${e.id}`}><div><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"}</small></Link><div className="odds-grid">{e.markets.map(m=>{const id=`${e.id}-${m.outcomeId}`;return <button key={m.outcomeId} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>})}<button className="more">+{e.more}</button></div></div>
-            <div className="event-footer"><button>▥ Stats</button><button>◉ Live tracker</button><span>{e.more} markets available</span></div>
+            <div className="event-body"><Link className="teams api-football-teams" href={`/sports/match/${e.id}`}><div><TeamLogo src={e.homeLogo} label={e.home}/><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><TeamLogo src={e.awayLogo} label={e.away}/><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"}</small></Link><div className="odds-grid">{e.markets.length?e.markets.map(m=>{const id=`${e.id}-${m.outcomeId}`;return <button key={m.outcomeId} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>}):<div className="odds-unavailable"><b>Odds pending</b><span>Fixture loaded from API-Football free feed</span></div>}<button className="more">+{e.more}</button></div></div>
+            <div className="event-footer"><button>▥ Stats</button><button>◉ Live tracker</button><span>{e.more?`${e.more} markets available`:"Fixture and images loaded"}</span></div>
           </article>)}
         </div>
         <div className="responsible-strip"><b>18+</b><span><strong>Bet responsibly.</strong> Set limits, take breaks and never chase losses.</span><Link href="/responsible-play">Responsible gaming</Link></div>
