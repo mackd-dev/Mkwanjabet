@@ -221,6 +221,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     const available=wallet?.availableBalanceTzs??0;
     const deposit=Math.max(1000,required-available);
     localStorage.setItem("mkwanjabet_pending_bet",JSON.stringify({bookingCode:code||null,stakeTzs:required,selections:code?null:slip}));
+    if(code)setBookingQuote(null);
     openDepositModal(deposit,{stakeTzs:required,bookingCode:code});
   };
   const pollSportsDeposit=async(reference:string)=>{
@@ -231,8 +232,9 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
         const balance=await refreshWallet();
         if(entry.status==="COMPLETED"){
           setDepositNotice("Deposit confirmed. Your wallet balance is updated.");
-          if(bookingQuote)setBookingQuote({...bookingQuote,availableBalanceTzs:balance.availableBalanceTzs});
-          if(depositResume&&!depositResume.bookingCode)setBetPrompt({kind:"confirm",title:"Confirm stake",message:"TZS "+depositResume.stakeTzs.toLocaleString()+" will be deducted from your wallet when this ticket is accepted.",primary:"Place bet",secondary:"Review slip",stakeTzs:depositResume.stakeTzs});
+          setDepositOpen(false);
+          if(depositResume?.bookingCode)void loadBookingCode(depositResume.bookingCode);
+          else if(depositResume)setBetPrompt({kind:"confirm",title:"Confirm stake",message:"TZS "+depositResume.stakeTzs.toLocaleString()+" will be deducted from your wallet when this ticket is accepted.",primary:"Place bet",secondary:"Review slip",stakeTzs:depositResume.stakeTzs});
           return;
         }
         if(entry.status==="FAILED"){setDepositError("The deposit was not completed. Please try again.");return;}
