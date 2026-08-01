@@ -74,13 +74,11 @@ export class OddsFeedService implements OnModuleInit, OnModuleDestroy {
     const timezone = this.config.get<string>("API_FOOTBALL_TIMEZONE") ?? "Africa/Dar_es_Salaam";
     const league = this.config.get<string>("API_FOOTBALL_LEAGUE");
     const season = this.config.get<string>("API_FOOTBALL_SEASON") ?? String(new Date().getFullYear());
-    const params = new URLSearchParams({ timezone });
+    const date = this.config.get<string>("API_FOOTBALL_DATE") ?? todayInTimezone(timezone);
+    const params = new URLSearchParams({ timezone, date });
     if (league) {
       params.set("league", league);
       params.set("season", season);
-      params.set("next", this.config.get<string>("API_FOOTBALL_NEXT") ?? "50");
-    } else {
-      params.set("next", this.config.get<string>("API_FOOTBALL_NEXT") ?? "50");
     }
     return `${baseUrl.replace(/\/$/, "")}/fixtures?${params}`;
   }
@@ -204,6 +202,15 @@ export class OddsFeedService implements OnModuleInit, OnModuleDestroy {
   }
 }
 
+export function todayInTimezone(timezone: string) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+    const value = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, part.value]));
+    return `${value.year}-${value.month}-${value.day}`;
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
 export function slug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "sports";
 }

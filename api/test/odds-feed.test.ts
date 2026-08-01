@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EventStatus } from "@prisma/client";
-import { adjustedPrice, eventStatus, outcomeKey, slug, sportName, teamCode, uniqueCode } from "../src/modules/odds-feed/odds-feed.service";
+import { adjustedPrice, eventStatus, outcomeKey, slug, sportName, teamCode, todayInTimezone, uniqueCode } from "../src/modules/odds-feed/odds-feed.service";
 
 test("maps provider outcomes", () => {
   const event = { home_team: "Arsenal", away_team: "Chelsea" };
@@ -25,4 +25,5 @@ test("maps API-Football fixture status and team codes", () => {
   assert.equal(eventStatus("NS"), EventStatus.SCHEDULED);
   assert.equal(teamCode("Manchester United"), "MU");
   assert.equal(teamCode("Azam"), "AZA");
+  assert.match(todayInTimezone("Africa/Dar_es_Salaam"), /^\d{4}-\d{2}-\d{2}$/);
 });
