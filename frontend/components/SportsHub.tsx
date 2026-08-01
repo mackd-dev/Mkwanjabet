@@ -34,6 +34,7 @@ type ApiEvent = {
 };
 type ValidationPreview = { status: "READY"|"WARNING"|"INVALID"; valid: boolean; errors: string[]; warnings: string[]; totalOdds: number; potentialReturnTzs: number; message: string };
 type Wallet = { availableBalanceTzs: number };
+type ApiTransaction = { reference:string; status:string };
 type PlacedBet = { id: string; ticketCode: string; potentialReturnTzs: number };
 type BookingQuote = { code:string; stakeTzs:number; minimumBookingStakeTzs:number; selectionCount:number; totalOdds:number; potentialReturnTzs:number; availableBalanceTzs:number };
 type BetPrompt = { kind:"deposit"|"confirm"; title:string; message:string; primary:string; secondary:string; stakeTzs:number };
@@ -51,6 +52,7 @@ function apiMessage(error: unknown) {
   return "Request could not be completed. Please try again.";
 }
 const sportIcons: Record<string,string> = { Football:"⚽", Basketball:"🏀", Tennis:"🎾", Baseball:"◆", Cricket:"●", Volleyball:"🏐", "Ice Hockey":"◉", "Table Tennis":"◌" };
+const depositMethods=[{name:"M-Pesa",code:"MP",provider:"MPESA",hint:"Vodacom"},{name:"Mixx by Yas",code:"MY",provider:"MIXX_BY_YAS",hint:"Yas"},{name:"Airtel Money",code:"AM",provider:"AIRTEL_MONEY",hint:"Airtel"},{name:"HaloPesa",code:"HP",provider:"HALOPESA",hint:"Halotel"}];
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
@@ -108,6 +110,14 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [bookingStake,setBookingStake]=useState("");
   const [bookingModalError,setBookingModalError]=useState("");
   const [betPrompt,setBetPrompt]=useState<BetPrompt|null>(null);
+  const [depositOpen,setDepositOpen]=useState(false);
+  const [depositAmount,setDepositAmount]=useState("10000");
+  const [depositMethod,setDepositMethod]=useState(depositMethods[0].name);
+  const [depositBusy,setDepositBusy]=useState(false);
+  const [depositNotice,setDepositNotice]=useState("");
+  const [depositError,setDepositError]=useState("");
+  const [depositResume,setDepositResume]=useState<{stakeTzs:number;bookingCode?:string}|null>(null);
+  const [bannerIndex,setBannerIndex]=useState(0);
   const [slipNotice,setSlipNotice]=useState("");
   const [slipBusy,setSlipBusy]=useState(false);
   const [validation,setValidation]=useState<ValidationPreview|null>(null);
@@ -156,11 +166,19 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     return tabMatch && sportMatch && timeMatch && q.includes(query.toLowerCase());
   });
   const featuredEvent=visible[0]??events[0];
+  const bannerEvents=useMemo(()=>Array.from(new Map([...visible,...events].filter(event=>event.bannerLogo||event.homeLogo||event.awayLogo).map(event=>[event.id,event])).values()).slice(0,10),[visible,events]);
+  const activeBanner=bannerEvents[bannerIndex%Math.max(1,bannerEvents.length)]??featuredEvent;
   const visibleWithOdds=visible.filter(event=>event.markets.length>0).length;
   const visibleLive=visible.filter(event=>event.live).length;
   const totalOdds=useMemo(()=>slip.reduce((n,s)=>n*s.odds,1),[slip]);
   const potential=stake*totalOdds;
 
+
+  useEffect(()=>{
+    if(bannerEvents.length<2)return;
+    const timer=window.setInterval(()=>setBannerIndex(index=>(index+1)%bannerEvents.length),4500);
+    return()=>window.clearInterval(timer);
+  },[bannerEvents.length]);
 
   const apiSelections=()=>slip.map(s=>({
     eventId:s.eventId,sport:s.sport,league:s.league,
@@ -183,11 +201,46 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
       setValidation(result);setSlipNotice(result.message);
     } catch(error){setSlipNotice(apiMessage(error));}finally{setSlipBusy(false)}
   };
+  const refreshWallet=async()=>{const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);return balance};
+  const openDepositModal=(amountTzs=10000,resume?:{stakeTzs:number;bookingCode?:string})=>{
+    if(!user){window.location.href="/login?next="+encodeURIComponent("/sports");return;}
+    setDepositAmount(String(Math.max(1000,amountTzs)));setDepositResume(resume??null);setDepositNotice("");setDepositError("");setDepositOpen(true);setBetPrompt(null);
+  };
   const depositForBet=(required:number,code?:string)=>{
     const available=wallet?.availableBalanceTzs??0;
     const deposit=Math.max(1000,required-available);
     localStorage.setItem("mkwanjabet_pending_bet",JSON.stringify({bookingCode:code||null,stakeTzs:required,selections:code?null:slip}));
-    window.location.href="/wallet/deposit?amount="+deposit+"&stake="+required+(code?"&booking="+encodeURIComponent(code):"&resume=1");
+    openDepositModal(deposit,{stakeTzs:required,bookingCode:code});
+  };
+  const pollSportsDeposit=async(reference:string)=>{
+    for(let attempt=0;attempt<6;attempt++){
+      await new Promise(resolve=>setTimeout(resolve,5000));
+      try{
+        const entry=await authenticatedApiRequest<ApiTransaction>("/wallet/deposit/"+encodeURIComponent(reference)+"/status",{method:"POST"});
+        const balance=await refreshWallet();
+        if(entry.status==="COMPLETED"){
+          setDepositNotice("Deposit confirmed. Your wallet balance is updated.");
+          if(bookingQuote)setBookingQuote({...bookingQuote,availableBalanceTzs:balance.availableBalanceTzs});
+          if(depositResume&&!depositResume.bookingCode)setBetPrompt({kind:"confirm",title:"Confirm stake",message:"TZS "+depositResume.stakeTzs.toLocaleString()+" will be deducted from your wallet when this ticket is accepted.",primary:"Place bet",secondary:"Review slip",stakeTzs:depositResume.stakeTzs});
+          return;
+        }
+        if(entry.status==="FAILED"){setDepositError("The deposit was not completed. Please try again.");return;}
+      }catch{return}
+    }
+    setDepositNotice("Payment request sent. We will keep checking your wallet balance.");
+  };
+  const submitDeposit=async()=>{
+    if(!user)return;
+    const amountTzs=Number(depositAmount);
+    setDepositNotice("");setDepositError("");
+    if(!Number.isInteger(amountTzs)||amountTzs<1000||amountTzs>10000000){setDepositError("Enter an amount between 1,000 and 10,000,000 TZS.");return;}
+    setDepositBusy(true);
+    try{
+      const method=depositMethods.find(item=>item.name===depositMethod)??depositMethods[0];
+      const entry=await authenticatedApiRequest<ApiTransaction>("/wallet/deposit",{method:"POST",body:JSON.stringify({provider:method.provider,phone:user.phone,amountTzs})});
+      await refreshWallet();setDepositNotice("Push USSD sent. Approve the payment on your phone.");void pollSportsDeposit(entry.reference);
+    }catch(error){setDepositError(apiMessage(error))}
+    finally{setDepositBusy(false)}
   };
   const submitBet=async()=>{
     setSlipBusy(true);setSlipNotice("");setBetPrompt(null);
@@ -257,6 +310,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   </aside>;
 
   return <main className="sports-shell">
+    {depositOpen&&<div className="booking-modal-backdrop sports-deposit-backdrop" role="presentation" onMouseDown={()=>!depositBusy&&setDepositOpen(false)}><section className="booking-modal sports-deposit-modal" role="dialog" aria-modal="true" aria-labelledby="sports-deposit-title" onMouseDown={e=>e.stopPropagation()}><header><div><span>INSTANT WALLET TOP UP</span><h2 id="sports-deposit-title">Deposit funds</h2></div><button aria-label="Close" onClick={()=>setDepositOpen(false)} disabled={depositBusy}>×</button></header><div className="sports-deposit-card"><div className="sports-deposit-balance"><span>Available balance</span><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></div><div className="sports-deposit-methods">{depositMethods.map(method=><button key={method.name} className={depositMethod===method.name?"active":""} onClick={()=>setDepositMethod(method.name)} disabled={depositBusy}><b>{method.code}</b><span>{method.name}<small>{method.hint}</small></span></button>)}</div><label className="sports-deposit-phone"><span>Mobile number</span><div><b>+255</b><input value={user?.phone.replace(/^\+255/,"")??""} readOnly/></div></label><label className="sports-deposit-amount"><span>Amount</span><div><b>TZS</b><input inputMode="numeric" value={depositAmount} onChange={e=>setDepositAmount(e.target.value.replace(/\D/g,""))}/></div></label><div className="sports-deposit-chips">{[5000,10000,20000,50000].map(amount=><button key={amount} onClick={()=>setDepositAmount(String(amount))} disabled={depositBusy}>{amount.toLocaleString()}</button>)}</div>{depositResume&&<div className="sports-deposit-resume"><b>Funding pending ticket</b><span>Stake TZS {depositResume.stakeTzs.toLocaleString()}{depositResume.bookingCode?` · Booking ${depositResume.bookingCode}`:""}</span></div>}{depositError&&<div className="booking-modal-error">{depositError}</div>}{depositNotice&&<div className="sports-deposit-notice">{depositNotice}</div>}</div><footer><button className="secondary" onClick={()=>setDepositOpen(false)} disabled={depositBusy}>Stay on sports</button><button className="deposit" onClick={submitDeposit} disabled={depositBusy}>{depositBusy?"Sending push...":"Deposit TZS "+(Number(depositAmount)||0).toLocaleString()}</button></footer><p>Approve the mobile-money push on your phone. Your balance updates here when the payment confirms.</p></section></div>}
     {betPrompt&&<div className="booking-modal-backdrop bet-prompt-backdrop" role="presentation" onMouseDown={()=>!slipBusy&&setBetPrompt(null)}><section className="booking-modal bet-prompt" role="dialog" aria-modal="true" aria-labelledby="bet-prompt-title" onMouseDown={e=>e.stopPropagation()}><header><div><span>{betPrompt.kind==="deposit"?"WALLET CHECK":"BETSLIP CONFIRMATION"}</span><h2 id="bet-prompt-title">{betPrompt.title}</h2></div><button aria-label="Close" onClick={()=>setBetPrompt(null)} disabled={slipBusy}>×</button></header><div className="bet-prompt-body"><p>{betPrompt.message}</p><div><span>Stake</span><b>TZS {betPrompt.stakeTzs.toLocaleString()}</b></div><div><span>Wallet balance</span><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></div>{betPrompt.kind==="deposit"&&<small>We will keep the ticket in your browser so you can return after funding.</small>}</div><footer><button className="secondary" onClick={()=>setBetPrompt(null)} disabled={slipBusy}>{betPrompt.secondary}</button><button className={betPrompt.kind==="deposit"?"deposit":"confirm"} disabled={slipBusy} onClick={()=>betPrompt.kind==="deposit"?depositForBet(betPrompt.stakeTzs):submitBet()}>{slipBusy?"Working...":betPrompt.primary}</button></footer></section></div>}
     {bookingQuote&&<div className="booking-modal-backdrop" role="presentation" onMouseDown={()=>!slipBusy&&setBookingQuote(null)}><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-modal-title" onMouseDown={e=>e.stopPropagation()}><header><div><span>SECURE BOOKING</span><h2 id="booking-modal-title">Confirm your ticket</h2></div><button aria-label="Close" onClick={()=>setBookingQuote(null)} disabled={slipBusy}>×</button></header><div className="booking-modal-code"><span>Booking code</span><strong>{bookingQuote.code}</strong><small>Picks remain hidden until this wallet-backed ticket is accepted.</small></div><div className="booking-modal-stats"><div><span>Selections</span><b>{bookingQuote.selectionCount}</b></div><div><span>Total odds</span><b>{bookingQuote.totalOdds.toFixed(2)}</b></div><div><span>Potential return</span><b>TZS {Math.floor((Number(bookingStake)||0)*bookingQuote.totalOdds).toLocaleString()}</b></div></div><label className="booking-modal-stake"><span>Your stake · Minimum TZS {bookingQuote.minimumBookingStakeTzs.toLocaleString()}</span><div><b>TZS</b><input autoFocus type="number" min={bookingQuote.minimumBookingStakeTzs} step="500" value={bookingStake} onChange={e=>{setBookingStake(e.target.value);setBookingModalError("")}}/></div></label><div className="booking-modal-balance"><span>Available balance</span><b>TZS {bookingQuote.availableBalanceTzs.toLocaleString()}</b></div>{bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)&&<div className="booking-modal-warning"><b>Deposit required</b><span>You need TZS {Math.max(0,(Number(bookingStake)||0)-bookingQuote.availableBalanceTzs).toLocaleString()} more. Deposited funds stay in your wallet until you return and confirm.</span></div>}{bookingModalError&&<div className="booking-modal-error">{bookingModalError}</div>}<footer><button className="secondary" onClick={()=>setBookingQuote(null)} disabled={slipBusy}>Cancel</button><button className={bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)?"deposit":"confirm"} onClick={confirmBooking} disabled={slipBusy}>{slipBusy?"Processing...":bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)?"Deposit funds":"Confirm & place bet"}</button></footer><p>Current odds, account limits, and wallet balance are revalidated before acceptance.</p></section></div>}
 
@@ -278,7 +332,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">
-        <div className="sports-hero api-football-hero"><div><span>API-FOOTBALL LIVE FEED</span><h1>Real fixtures.<br/>Real club visuals.</h1><p>{featuredEvent?`${featuredEvent.league}: ${featuredEvent.home} vs ${featuredEvent.away}`:"Browse current events, build your ticket and track every wallet-backed bet from one account."}</p><div className="hero-actions-mini"><Link href="#events">Explore events</Link><Link href="/responsible-play">Play responsibly</Link></div></div><div className="feed-banner">{featuredEvent?.bannerLogo&&<img src={featuredEvent.bannerLogo} alt=""/>}<div className="feed-banner-teams"><TeamLogo src={featuredEvent?.homeLogo} label={featuredEvent?.home??"Home"}/><span>{featuredEvent?.live?featuredEvent.score??"LIVE":"VS"}</span><TeamLogo src={featuredEvent?.awayLogo} label={featuredEvent?.away??"Away"}/></div><small>{featuredEvent?`${featuredEvent.country} · ${featuredEvent.league}`:"Waiting for API-Football fixtures"}</small></div><div className="hero-jackpot"><small>YOUR ACCOUNT</small><b>{user?`TZS ${(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}`:"Start betting"}</b><span>{user?"Available wallet balance":"Create an account to fund your wallet and place tickets"}</span><Link href={user?"/wallet/deposit":"/register"}>{user?"Deposit funds":"Register now"} →</Link></div></div>
+        <div className="sports-hero api-football-hero"><div><span>API-FOOTBALL LIVE FEED</span><h1>Real fixtures.<br/>Real club visuals.</h1><p>{featuredEvent?`${featuredEvent.league}: ${featuredEvent.home} vs ${featuredEvent.away}`:"Browse current events, build your ticket and track every wallet-backed bet from one account."}</p><div className="hero-actions-mini"><Link href="#events">Explore events</Link><Link href="/responsible-play">Play responsibly</Link></div></div><div className="feed-banner sports-banner-carousel">{activeBanner?.bannerLogo&&<img src={activeBanner.bannerLogo} alt=""/>}<div className="feed-banner-teams"><TeamLogo src={activeBanner?.homeLogo} label={activeBanner?.home??"Home"}/><span>{activeBanner?.live?activeBanner.score??"LIVE":"VS"}</span><TeamLogo src={activeBanner?.awayLogo} label={activeBanner?.away??"Away"}/></div><small>{activeBanner?`${activeBanner.country} · ${activeBanner.league}`:"Waiting for API-Football fixtures"}</small><div className="banner-dots">{bannerEvents.map((event,index)=><button key={event.id} className={index===bannerIndex%Math.max(1,bannerEvents.length)?"active":""} aria-label={`Show banner ${index+1}`} onClick={()=>setBannerIndex(index)}/>)}</div></div><div className="hero-jackpot"><small>YOUR ACCOUNT</small><b>{user?`TZS ${(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}`:"Start betting"}</b><span>{user?"Available wallet balance":"Create an account to fund your wallet and place tickets"}</span>{user?<button onClick={()=>openDepositModal(10000)}>Deposit funds →</button>:<Link href="/register">Register now →</Link>}</div></div>
         <div className="promo-cards"><article><span>LIVE</span><b>Current event odds</b><small>Markets loaded from the sportsbook API</small></article><article><span>SAFE</span><b>Wallet-backed tickets</b><small>Every stake and payout is recorded</small></article><article><span>FAST</span><b>Instant booking</b><small>Save and restore a ticket by code</small></article></div>
         <div className="sports-toolbar"><div><button onClick={()=>setTab("prematch")} className={tab==="prematch"?"active":""}>Pre-match</button><button onClick={()=>setTab("live")} className={tab==="live"?"active":""}><i/> Live now</button></div><label><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search team, league or country"/></label></div>
         <div className="quick-filters">{[["all","All"],["today","Today"],["tomorrow","Tomorrow"],["soon","Starting soon"]].map(([key,label])=><button onClick={()=>setTimeFilter(key as typeof timeFilter)} className={timeFilter===key?"active":""} key={key}>{label}</button>)}</div>
