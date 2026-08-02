@@ -112,6 +112,7 @@ function TeamLogo({src,label}:{src?:string;label:string}){return src?<img classN
 export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch"|"live"}={}){
   const [tab,setTab]=useState<"prematch"|"live">(initialTab);
   const [sport,setSport]=useState("Football");
+  const [expandedSport,setExpandedSport]=useState<string|null>("Football");
   const [query,setQuery]=useState("" );
   const [timeFilter,setTimeFilter]=useState<"all"|"today"|"tomorrow"|"soon">("all");
   const [events,setEvents]=useState<Event[]>([]);
@@ -151,7 +152,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     apiRequest<ApiEvent[]>("/events").then(data=>{
       if(!mounted)return;
       const next=data.map(toEvent);
-      if(next.length){setEvents(next);setSport(current=>next.some(event=>event.sport===current)?current:next[0].sport);setEventsNotice("");}
+      if(next.length){setEvents(next);setSport(current=>next.some(event=>event.sport===current)?current:next[0].sport);setExpandedSport(current=>current&&next.some(event=>event.sport===current)?current:next[0].sport);setEventsNotice("");}
       else setEventsNotice("No live sportsbook events are available right now.");
     }).catch(()=>{
       if(mounted){setEvents([]);setEventsNotice("Sportsbook events are temporarily unavailable.");}
@@ -347,7 +348,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     <section className="sports-layout">
       <aside className="sports-left">
         <h3>Sports</h3>
-        {sportOptions.map(({name,icon,count})=><div className="sports-left-group" key={name}><button onClick={()=>setSport(name)} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>{sport===name&&<div className="sports-left-leagues">{(competitionsBySport[name]??[]).length?(competitionsBySport[name]??[]).map(league=><button key={league} onClick={()=>setQuery(league)}><span>★</span>{league}</button>):<small className="sports-empty-competitions">No competitions available</small>}</div>}</div>)}
+        {sportOptions.map(({name,icon,count})=><div className="sports-left-group" key={name}><button onClick={()=>{setSport(name);setExpandedSport(current=>current===name?null:name)}} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>{expandedSport===name&&<div className="sports-left-leagues">{(competitionsBySport[name]??[]).length?(competitionsBySport[name]??[]).map(league=><button key={league} onClick={()=>setQuery(league)}><span>★</span>{league}</button>):<small className="sports-empty-competitions">No competitions available</small>}</div>}</div>)}
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">
