@@ -371,7 +371,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
       <div className="sports-actions"><Link className="wallet-preview" href={user?"/dashboard":"/login?next=/sports"}><small>Balance</small><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></Link>{sessionLoading?<span className="sports-session-loading">Checking session...</span>:user?<Link className="sports-register" href="/dashboard">My account</Link>:<><Link href="/login?next=/sports">Log in</Link><Link className="sports-register" href="/register">Register</Link></>}</div>
     </header>
     <div className="sports-mainnav">
-      <Link className={tab==="prematch"?"active":""} href="/sports">Sports</Link><Link className={tab==="live"?"active":""} href="/live">Live</Link><Link href="/games">Games</Link><Link href="/my-bets">My bets</Link><Link href="/results">Results</Link><Link href="/wallet/deposit">Deposit</Link>
+      <Link className={tab==="prematch"?"active":""} href="/sports">Sports</Link><Link className={tab==="live"?"active":""} href="/live">Live</Link><Link href="/my-bets">My bets</Link><Link href="/results">Results</Link><Link href="/wallet/deposit">Deposit</Link>
     </div>
     <section className="ticker"><b>IN PLAY</b>{Array.from(new Set(events.map(event=>event.league))).slice(0,6).map(league=><span key={league}>{league}</span>)}{!events.length&&<span>Waiting for event feed</span>}</section>
     <section className="sports-layout">
