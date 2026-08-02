@@ -181,7 +181,40 @@ enum LimitPeriod {
   MONTHLY
 }
 
-model User {
+
+enum CasinoGameType {
+  CRASH
+  INSTANT
+  SLOT
+  TABLE
+  ARCADE
+}
+
+enum CasinoGameStatus {
+  ACTIVE
+  COMING_SOON
+  DISABLED
+}
+
+enum CasinoSessionStatus {
+  OPEN
+  CLOSED
+  EXPIRED
+}
+
+enum CasinoTransactionType {
+  DEMO_DEBIT
+  DEMO_CREDIT
+  DEMO_REFUND
+  PROVIDER_ADJUSTMENT
+}
+
+enum CasinoTransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}model User {
   id              String                   @id @default(cuid())
   name            String
   phone           String                   @unique
@@ -204,7 +237,8 @@ model User {
   gamingLimits    ResponsibleGamingLimit[]
   bookingCodes    BookingCode[]
 
-  @@index([status])
+    casinoSessions  CasinoSession[]
+@@index([status])
 }
 
 model League {
@@ -813,4 +847,90 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([actorId, createdAt])
   @@index([entityType, entityId, createdAt])
+}
+
+model CasinoProvider {
+  id           String              @id @default(cuid())
+  code         String              @unique
+  name         String
+  adapter      String              @default("demo")
+  mode         String              @default("DEMO")
+  active       Boolean             @default(true)
+  metadata     Json?
+  games        CasinoGame[]
+  sessions     CasinoSession[]
+  transactions CasinoTransaction[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([active, adapter])
+}
+
+model CasinoGame {
+  id          String             @id @default(cuid())
+  providerId  String
+  externalId  String
+  slug        String             @unique
+  name        String
+  type        CasinoGameType
+  status      CasinoGameStatus   @default(ACTIVE)
+  accent      String             @default("#00b341")
+  icon        String             @default("*")
+  description String
+  meta        String
+  launchPath  String?
+  config      Json?
+  provider    CasinoProvider     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  sessions    CasinoSession[]
+  transactions CasinoTransaction[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([providerId, externalId])
+  @@index([status, type])
+}
+
+model CasinoSession {
+  id                  String              @id @default(cuid())
+  providerId          String
+  gameId              String
+  userId              String?
+  providerSessionId   String              @unique
+  mode                String              @default("DEMO")
+  status              CasinoSessionStatus @default(OPEN)
+  playMoneyBalanceTzs Int                 @default(100000)
+  launchUrl           String
+  metadata            Json?
+  provider            CasinoProvider      @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  game                CasinoGame          @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  user                User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  transactions        CasinoTransaction[]
+  expiresAt           DateTime
+  closedAt            DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([gameId, status])
+  @@index([providerId, createdAt])
+}
+
+model CasinoTransaction {
+  id                    String                  @id @default(cuid())
+  providerId            String
+  gameId                String
+  sessionId             String
+  providerTransactionId String                  @unique
+  type                  CasinoTransactionType
+  status                CasinoTransactionStatus @default(COMPLETED)
+  amountTzs             Int
+  balanceAfterTzs       Int
+  metadata              Json?
+  provider              CasinoProvider          @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  game                  CasinoGame              @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  session               CasinoSession           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt             DateTime                @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([providerId, createdAt])
 }

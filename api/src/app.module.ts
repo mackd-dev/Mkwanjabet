@@ -22,13 +22,14 @@ import { ResponsibleGamingModule } from "./modules/responsible-gaming/responsibl
 import { AdminModule } from "./modules/admin/admin.module";
 import { OperatorControlsModule } from "./modules/operator-controls/operator-controls.module";
 import { OddsFeedModule } from "./modules/odds-feed/odds-feed.module";
+import { CasinoModule } from "./modules/casino/casino.module";
 
 @Module({ imports: [
   ConfigModule.forRoot({ isGlobal: true }),
   ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]), PrismaModule,
   HealthModule, AuthModule, PicksModule, ResultsModule, PlansModule, UsersModule,
   SavedPicksModule, NotificationsModule, SubscriptionsModule, PaymentsModule,
-  SportsbookModule, OddsFeedModule, BookingCodesModule, OperatorControlsModule,
+  SportsbookModule, OddsFeedModule, CasinoModule, BookingCodesModule, OperatorControlsModule,
   WalletModule, BettingModule, BetsModule, KycModule, ResponsibleGamingModule, AdminModule,
 ]})
 export class AppModule {}
