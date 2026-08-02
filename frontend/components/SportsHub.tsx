@@ -60,15 +60,17 @@ const normalizeTzPhone=(raw:string)=>{
  return `+255${digits}`;
 };
 const promoBanners=[
-  {name:"Trophy Hunt",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/4124b46f143179262137c2416481cd8f1920x248drn.webp",label:"MkwanjaBet Promo"},
-  {name:"First Deposit Bonus",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/089c920dc75c5521df21ef9d815a0c4f1920x248dn.webp",label:"Deposit Bonus"},
-  {name:"Weekly Reward",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/0c416c63927ca8c0c7802684202ed0731920x248drn.webp",label:"Weekly Reward"},
-  {name:"Welcome Package",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/84f432d7c26b2194d2bdcd5f7f54ad271920x248dn.webp",label:"Welcome Package"},
-  {name:"Tennis Challenge",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/901d211ac0cc7c92c0525292c1a431831920x248dn.webp",label:"Tennis Challenge"},
-  {name:"Crypto Freebet",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/7c400df76bbfc5a953568126bba5b7341920x248drn.webp",label:"Freebet"},
-  {name:"Ace Arena",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/a5cde71f7f2435af6dc75c00ea0e744e1920x248drn.webp",label:"Ace Arena"},
-  {name:"App Bonus",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/a7e331e9bdfd87a2a542969cda3d14da.jpg",label:"App Bonus"},
-  {name:"Riot Race",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/f5ae71f3eae09c02aaf5cb1d81e255981920x248drn.webp",label:"Riot Race"}
+  {name:"Trophy Hunt",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/4124b46f143179262137c2416481cd8f1920x248drn.webp"},
+  {name:"First Deposit Bonus",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/089c920dc75c5521df21ef9d815a0c4f1920x248dn.webp"},
+  {name:"Welcome Package",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/84f432d7c26b2194d2bdcd5f7f54ad271920x248dn.webp"},
+  {name:"Tennis Challenge",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/901d211ac0cc7c92c0525292c1a431831920x248dn.webp"},
+  {name:"Riot Race",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/f5ae71f3eae09c02aaf5cb1d81e255981920x248drn.webp"},
+  {name:"Banner 1",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/00d9bdb9709f868424601e994d289233.webp"},
+  {name:"Banner 2",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/0847a49250495282ed700e66aee91084r.webp"},
+  {name:"Banner 3",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/0c165c5f812c8ae0f12b6c9908627e0e.webp"},
+  {name:"Banner 4",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/0ce7b5ad5833b66232f3d5a9d8280461.webp"},
+  {name:"Banner 5",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/134064af715a56f1d0182d3da9f54aecr.webp"},
+  {name:"Banner 6",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/1ec297dbaec39946c9f51e6995df9d6a1920x248drn.webp"}
 ];
 
 function formatTime(value: string) {
@@ -351,7 +353,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">
-        <div className="sports-hero api-football-hero"><div><span>API-FOOTBALL LIVE FEED</span><h1>Real fixtures.<br/>Real club visuals.</h1><p>{featuredEvent?`${featuredEvent.league}: ${featuredEvent.home} vs ${featuredEvent.away}`:"Browse current events, build your ticket and track every wallet-backed bet from one account."}</p><div className="hero-actions-mini"><Link href="#events">Explore events</Link><Link href="/responsible-play">Play responsibly</Link></div></div><div className="feed-banner sports-banner-carousel promo-banner image-promo-banner"><img src={activePromo.image} alt={activePromo.name} loading="eager"/><div className="promo-banner-brand"><span>{activePromo.label}</span><b>{activePromo.name}</b></div><div className="banner-dots">{promoBanners.map((banner,index)=><button key={banner.name} className={index===bannerIndex%promoBanners.length?"active":""} aria-label={`Show ${banner.name}`} onClick={()=>setBannerIndex(index)}/>)}</div></div><div className="hero-jackpot"><small>YOUR ACCOUNT</small><b>{user?`TZS ${(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}`:"Start betting"}</b><span>{user?"Available wallet balance":"Create an account to fund your wallet and place tickets"}</span>{user?<button onClick={()=>openDepositModal(10000)}>Deposit funds →</button>:<Link href="/register">Register now →</Link>}</div></div>
+        <div className="sports-hero api-football-hero"><div className="hero-copy"><span>API-FOOTBALL LIVE FEED</span><h1>Real fixtures.<br/>Real club visuals.</h1><p>{featuredEvent?`${featuredEvent.league}: ${featuredEvent.home} vs ${featuredEvent.away}`:"Browse current events, build your ticket and track every wallet-backed bet from one account."}</p><div className="hero-actions-mini"><Link href="#events">Explore events</Link><Link href="/responsible-play">Play responsibly</Link></div></div><div className="hero-promo-stack"><div className="feed-banner sports-banner-carousel promo-banner image-promo-banner"><img src={activePromo.image} alt={activePromo.name} loading="eager"/><div className="banner-dots">{promoBanners.map((banner,index)=><button key={banner.name} className={index===bannerIndex%promoBanners.length?"active":""} aria-label={`Show ${banner.name}`} onClick={()=>setBannerIndex(index)}/>)}</div></div><div className="hero-jackpot"><small>YOUR ACCOUNT</small><b>{user?`TZS ${(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}`:"Start betting"}</b><span>{user?"Available wallet balance":"Create an account to fund your wallet and place tickets"}</span>{user?<button onClick={()=>openDepositModal(10000)}>Deposit funds →</button>:<Link href="/register">Register now →</Link>}</div></div></div>
         <div className="promo-cards"><article><span>LIVE</span><b>Current event odds</b><small>Markets loaded from the sportsbook API</small></article><article><span>SAFE</span><b>Wallet-backed tickets</b><small>Every stake and payout is recorded</small></article><article><span>FAST</span><b>Instant booking</b><small>Save and restore a ticket by code</small></article></div>
         <div className="sports-toolbar"><div><button onClick={()=>setTab("prematch")} className={tab==="prematch"?"active":""}>Pre-match</button><button onClick={()=>setTab("live")} className={tab==="live"?"active":""}><i/> Live now</button></div><label><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search team, league or country"/></label></div>
         <div className="quick-filters">{[["all","All"],["today","Today"],["tomorrow","Tomorrow"],["soon","Starting soon"]].map(([key,label])=><button onClick={()=>setTimeFilter(key as typeof timeFilter)} className={timeFilter===key?"active":""} key={key}>{label}</button>)}</div>
