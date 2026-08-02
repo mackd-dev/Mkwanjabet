@@ -934,3 +934,41 @@ model CasinoTransaction {
   @@index([sessionId, createdAt])
   @@index([providerId, createdAt])
 }
+model AviatorRound {
+  id              String   @id @default(cuid())
+  gameSlug        String   @default("aviator")
+  roundNumber     Int
+  status          String   @default("BETTING")
+  serverSeedHash  String
+  serverSeed      String
+  clientSeed      String   @default("mkwanjabet-demo")
+  nonce           Int
+  crashPoint      Decimal  @db.Decimal(8, 2)
+  bettingClosesAt DateTime
+  startsAt        DateTime
+  crashedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  bets            AviatorBet[]
+
+  @@index([gameSlug, createdAt])
+  @@index([status, startsAt])
+  @@unique([gameSlug, roundNumber])
+}
+
+model AviatorBet {
+  id                String   @id @default(cuid())
+  roundId           String
+  sessionId         String
+  stakeTzs          Int
+  status            String   @default("PLACED")
+  cashoutMultiplier Decimal? @db.Decimal(8, 2)
+  payoutTzs         Int?
+  createdAt         DateTime @default(now())
+  cashedOutAt       DateTime?
+  round             AviatorRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, sessionId])
+  @@index([sessionId, createdAt])
+  @@index([roundId, status])
+}
