@@ -38,7 +38,7 @@ const content: Record<PageKind, { eyebrow: string; title: string; intro: string;
 export default function InfoPage({ kind }: { kind: PageKind }) {
   const page = content[kind];
   return <main className="info-page">
-    <header className="info-nav"><Link className="brand" href="/"><img src="/brand/logos/06-wordmark-light.svg" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link><nav><Link href="/sports">Sports</Link><Link href="/live">Live</Link><Link href="/my-bets">My bets</Link><Link className="btn btn-small btn-gold" href="/login">Ingia</Link></nav></header>
+    <header className="info-nav"><Link className="brand" href="/"><img src="/brand/icon/mb-mark-color.png" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link><nav><Link href="/sports">Sports</Link><Link href="/live">Live</Link><Link href="/my-bets">My bets</Link><Link className="btn btn-small btn-gold" href="/login">Ingia</Link></nav></header>
     <section className="info-hero"><span className="eyebrow">{page.eyebrow}</span><h1>{page.title}</h1><p>{page.intro}</p></section>
     <section className="info-content">
       {page.sections.map((section, index) => <article key={section.title}><span>0{index + 1}</span><div><h2>{section.title}</h2><p>{section.body}</p></div></article>)}

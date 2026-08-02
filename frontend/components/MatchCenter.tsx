@@ -90,7 +90,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
 
   return <main className="mc-shell">
     <header className="mc-header">
-      <Link className="sports-brand" href="/sports"><img src="/brand/logos/06-wordmark-light.svg" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link>
+      <Link className="sports-brand" href="/sports"><img src="/brand/icon/mb-mark-color.png" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link>
       <nav><Link href="/sports">Sports</Link><Link href="/live">Live</Link><Link href="/my-bets">My bets</Link><Link href="/responsible-play">Responsible play</Link></nav>
       <div>{user?<Link className="sports-register" href="/dashboard">My account</Link>:<><Link href={`/login?next=/sports/match/${matchId}`}>Log in</Link><Link className="sports-register" href="/register">Register</Link></>}</div>
     </header>
