@@ -367,7 +367,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
 
     <header className="sports-topbar">
       <Link className="sports-brand" href="/"><img src="/brand/icon/mb-mark-color.png" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link>
-      <nav><Link className={tab==="prematch"?"active":""} href="/sports">Sports</Link><Link className={tab==="live"?"active":""} href="/live">Live</Link><Link href="/results">Results</Link><Link href="/responsible-play">Responsible play</Link></nav>
+      <nav className="sports-toplinks"><Link href="/responsible-play">Responsible play</Link></nav>
       <div className="sports-actions"><Link className="wallet-preview" href={user?"/dashboard":"/login?next=/sports"}><small>Balance</small><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></Link>{sessionLoading?<span className="sports-session-loading">Checking session...</span>:user?<Link className="sports-register" href="/dashboard">My account</Link>:<><Link href="/login?next=/sports">Log in</Link><Link className="sports-register" href="/register">Register</Link></>}</div>
     </header>
     <div className="sports-mainnav">
