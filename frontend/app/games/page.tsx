@@ -1,1 +1,1 @@
-import { notFound } from "next/navigation"; export default function GamesPage(){ notFound(); }
+import { redirect } from "next/navigation"; export default function GamesPage(){ redirect("/sports"); }
