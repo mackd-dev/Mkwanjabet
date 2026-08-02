@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 180">
+  <rect width="600" height="180" fill="#111111"/>
+  <text x="60.0" y="129.6" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="900"
+        font-size="135.0" fill="#FFFFFF" letter-spacing="3">MKWANJA</text>
+  <rect x="300.0" y="72.0" width="24.0" height="39.6" fill="#FFD700"/>
+  <text x="330.0" y="129.6" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="900"
+        font-size="135.0" fill="#00B341" letter-spacing="3">BET</text>
+  <rect x="444.0" y="72.0" width="24.0" height="39.6" fill="#00B341"/>
+  <text x="480.0" y="129.6" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="900"
+        font-size="135.0" fill="#FFD700" letter-spacing="3">.</text>
+</svg>

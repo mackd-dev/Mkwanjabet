@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <rect width="180" height="180" rx="39.6" fill="#111111"/>
+  <!-- swoosh arc curving under both letters -->
+  <path d="M 18.0,147.6
+           C 36.0,122.4 81.0,111.6 108.0,118.80000000000001
+           C 140.4,125.99999999999999 158.4,140.4 169.2,154.8
+           C 125.99999999999999,172.79999999999998 72.0,165.6 18.0,169.2 Z"
+        fill="#006B2F" opacity="0.95"/>
+
+  <text x="23.400000000000002" y="111.6" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="99.00000000000001" fill="#FFD700">M</text>
+  <text x="82.8" y="111.6" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="99.00000000000001" fill="#00B341">B</text>
+  <!-- small accent dot -->
+  <circle cx="151.2" cy="54.0" r="4.5" fill="#00B341"/>
+</svg>

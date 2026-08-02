@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 495">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00B341"/>
+      <stop offset="100%" stop-color="#006B2F"/>
+    </linearGradient>
+  </defs>
+  <rect width="420" height="495" fill="#111111" rx="16.8"/>
+  <!-- shield outline -->
+  <path d="M 210.0,25.2
+           L 327.6,42.0
+           L 327.6,260.4
+           Q 327.6,399.0 210.0,462.00000000000006
+           Q 92.4,399.0 92.4,260.4
+           L 92.4,42.0 Z"
+        fill="url(#g1)" stroke="#FFD700" stroke-width="5.04"/>
+  <!-- soccer ball circle -->
+  <circle cx="210.0" cy="96.6" r="42.0" fill="#FFFFFF"/>
+  <circle cx="210.0" cy="96.6" r="23.1" fill="#111111"/>
+  <polygon points="210.0,75.6 233.1,96.6 210.0,117.6 186.9,96.6"
+           fill="#111111" opacity="0.5"/>
+  <!-- text MKWANJA -->
+  <text x="210.0" y="260.4" text-anchor="middle" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="58.800000000000004" fill="#FFFFFF">MKWANJA</text>
+  <!-- text BET -->
+  <rect x="134.4" y="310.8" width="151.2" height="5.04" fill="#FFFFFF"/>
+  <text x="210.0" y="361.2" text-anchor="middle" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-style="italic" font-weight="900" font-size="75.6" fill="#FFD700" letter-spacing="2">BET</text>
+  <rect x="134.4" y="386.40000000000003" width="151.2" height="5.04" fill="#FFFFFF"/>
+  <!-- 3 stars -->
+  <g fill="#FFD700">
+
+    <polygon points="134.4,415.8 141.96,436.8 158.76000000000002,436.8
+              144.9,449.40000000000003 150.36,470.40000000000003
+              134.4,457.8 118.44000000000001,470.40000000000003
+              123.9,449.40000000000003 110.04,436.8
+              126.84,436.8" transform="scale(0.5) translate(134.4,415.8)"/>
+
+    <polygon points="210.0,415.8 217.56,436.8 234.36,436.8
+              220.5,449.40000000000003 225.96,470.40000000000003
+              210.0,457.8 194.04,470.40000000000003
+              199.5,449.40000000000003 185.64,436.8
+              202.44,436.8" transform="scale(0.5) translate(210.0,415.8)"/>
+
+    <polygon points="285.6,415.8 293.16,436.8 309.96000000000004,436.8
+              296.1,449.40000000000003 301.56,470.40000000000003
+              285.6,457.8 269.64000000000004,470.40000000000003
+              275.1,449.40000000000003 261.24,436.8
+              278.04,436.8" transform="scale(0.5) translate(285.6,415.8)"/>
+  </g>
+</svg>

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111111"/>
+      <stop offset="100%" stop-color="#006B2F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1500" height="500" fill="url(#bg)"/>
+  <g transform="translate(60.0,110.0)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 275 275">
+  <rect width="275" height="275" rx="60.5" fill="#111111"/>
+  <!-- swoosh arc curving under both letters -->
+  <path d="M 27.5,225.5
+           C 55.0,187.0 123.75,170.5 165.0,181.5
+           C 214.5,192.5 242.0,214.5 258.5,236.5
+           C 192.5,264.0 110.0,253.0 27.5,258.5 Z"
+        fill="#006B2F" opacity="0.95"/>
+
+  <text x="35.75" y="170.5" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="151.25" fill="#FFD700">M</text>
+  <text x="126.5" y="170.5" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="151.25" fill="#00B341">B</text>
+  <!-- small accent dot -->
+  <circle cx="231.0" cy="82.5" r="6.875" fill="#00B341"/>
+</svg>
+  </g>
+  <text x="600.0" y="250.0" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="900"
+        font-size="170.0" fill="#FFFFFF" letter-spacing="3">MKWANJA</text>
+  <rect x="600.0" y="275.0" width="75.0" height="20.0" fill="#FFD700"/>
+  <text x="690.0" y="250.0" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="900"
+        font-size="170.0" fill="#00B341" letter-spacing="3">BET</text>
+  <text x="600.0" y="390.0" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="700"
+        font-size="50.0" fill="#FFD700" letter-spacing="4">PLAY SMART. WIN BIG.</text>
+  <text x="1440.0" y="480.0" text-anchor="end" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="700" font-size="30.0" fill="#FFFFFF" letter-spacing="3">TWITTER</text>
+</svg>

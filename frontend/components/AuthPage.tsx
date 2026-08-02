@@ -112,7 +112,7 @@ export default function AuthPage({ mode }: Props) {
   return (
     <main className="auth-page">
       <header className="auth-nav">
-        <Link className="brand" href="/"><span className="brand-mark">P</span><span>Mkwanja<span>Bet</span></span></Link>
+        <Link className="brand" href="/"><img src="/brand/logos/02-primary-logo-light.svg" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link>
         <Link className="auth-back" href="/">← Rudi Nyumbani</Link>
       </header>
 

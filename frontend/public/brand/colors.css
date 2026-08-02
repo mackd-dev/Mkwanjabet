@@ -1,0 +1,18 @@
+/* Mkwanja Bet — color tokens */
+:root {
+  --mb-yellow:        #FFD700;
+  --mb-dark-green:    #006B2F;
+  --mb-bright-green:  #00B341;
+  --mb-black:         #111111;
+  --mb-white:         #FFFFFF;
+  --mb-grey:          #808080;
+}
+
+.bg-yellow    { background: var(--mb-yellow); }
+.bg-darkgreen { background: var(--mb-dark-green); }
+.bg-green     { background: var(--mb-bright-green); }
+.bg-black     { background: var(--mb-black); color: var(--mb-white); }
+.bg-white     { background: var(--mb-white); color: var(--mb-black); }
+.text-yellow  { color: var(--mb-yellow); }
+.text-green   { color: var(--mb-bright-green); }
+.text-darkgreen{color: var(--mb-dark-green); }

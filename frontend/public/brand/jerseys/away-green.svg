@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 720" width="600" height="720">
+  <rect width="600" height="720" fill="#111111"/>
+  <!-- background gradient hint -->
+  <defs>
+    <linearGradient id="shade_away" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00B341"/>
+      <stop offset="100%" stop-color="#00B341"/>
+    </linearGradient>
+  </defs>
+  <!-- jersey body silhouette -->
+  <path d="M 132.0,72.0
+           Q 60.0,158.4 60.0,259.2
+           Q 60.0,360.0 108.0,446.4
+           L 108.0,662.4
+           Q 108.0,691.1999999999999 300.0,691.1999999999999
+           Q 491.99999999999994,691.1999999999999 491.99999999999994,662.4
+           L 491.99999999999994,446.4
+           Q 540.0,360.0 540.0,259.2
+           Q 540.0,158.4 468.0,72.0
+           L 372.0,36.0
+           Q 300.0,86.39999999999999 228.0,36.0 Z"
+        fill="url(#shade_away)" stroke="#111111" stroke-width="3"/>
+  <!-- collar -->
+  <path d="M 228.0,36.0
+           Q 300.0,144.0 372.0,36.0
+           L 348.0,86.39999999999999
+           Q 300.0,144.0 252.0,86.39999999999999 Z"
+        fill="#FFD700"/>
+  <!-- shoulder stripes -->
+  <polygon points="120.0,72.0 216.0,43.199999999999996 240.0,100.80000000000001 132.0,129.6"
+           fill="#FFD700"/>
+  <polygon points="480.0,72.0 384.0,43.199999999999996 360.0,100.80000000000001 468.0,129.6"
+           fill="#FFD700"/>
+  <!-- side stripes -->
+  <rect x="108.0" y="288.0" width="24.0" height="288.0" fill="#FFD700"/>
+  <rect x="468.0" y="288.0" width="24.0" height="288.0" fill="#FFD700"/>
+  <!-- chest patch (logo wordmark) -->
+  <rect x="180.0" y="201.60000000000002" width="240.0" height="129.6"
+        fill="#FFD700" rx="12.0"/>
+  <text x="300.0" y="291.6" text-anchor="middle" font-family="'Montserrat','DejaVu Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="50.400000000000006" fill="#00B341" letter-spacing="2">MKWANJA</text>
+  <text x="300.0" y="331.2"  text-anchor="middle" font-family="'Montserrat','DejaVu Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="50.400000000000006" fill="BLACK" letter-spacing="3">BET</text>
+  <!-- bottom hem -->
+  <rect x="108.0" y="676.8" width="384.0" height="14.4" fill="#FFD700"/>
+</svg>

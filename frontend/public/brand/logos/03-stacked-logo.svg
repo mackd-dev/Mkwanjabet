@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 495">
+  <rect width="420" height="495" fill="#111111" rx="16.8"/>
+  <g transform="translate(80.0,16.8)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 260">
+  <rect width="260" height="260" rx="57.2" fill="#111111"/>
+  <!-- swoosh arc curving under both letters -->
+  <path d="M 26.0,213.2
+           C 52.0,176.8 117.0,161.2 156.0,171.6
+           C 202.8,182.0 228.8,202.8 244.39999999999998,223.6
+           C 182.0,249.6 104.0,239.20000000000002 26.0,244.39999999999998 Z"
+        fill="#006B2F" opacity="0.95"/>
+
+  <text x="33.800000000000004" y="161.2" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="143.0" fill="#FFD700">M</text>
+  <text x="119.60000000000001" y="161.2" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="143.0" fill="#00B341">B</text>
+  <!-- small accent dot -->
+  <circle cx="218.4" cy="78.0" r="6.5" fill="#00B341"/>
+</svg>
+  </g>
+  <!-- yellow / line / MKWANJA / line -->
+  <rect x="75.6" y="310.8" width="268.8" height="10.5" fill="#FFD700"/>
+  <text x="210.0" y="386.40000000000003" text-anchor="middle" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="75.6" fill="#FFFFFF" letter-spacing="3">MKWANJA</text>
+  <text x="210.0" y="453.6" text-anchor="middle" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="75.6" fill="#00B341" letter-spacing="4">BET</text>
+  <rect x="75.6" y="462.00000000000006" width="268.8" height="10.5" fill="#FFD700"/>
+</svg>

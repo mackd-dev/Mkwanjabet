@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <g fill="none" stroke="#FFD700" stroke-width="7.68" stroke-linejoin="round" stroke-linecap="round">
+    <!-- cup body -->
+    <path d="M 38.4,25.6 L 89.6,25.6
+             L 84.48,66.56 Q 64.0,87.04 43.52,66.56 Z" fill="#FFD700" fill-opacity="0.15"/>
+    <!-- handles -->
+    <path d="M 38.4,33.28 Q 17.92,35.84 17.92,51.2 Q 17.92,61.44 38.4,58.88"/>
+    <path d="M 89.6,33.28 Q 110.08,35.84 110.08,51.2 Q 110.08,61.44 89.6,58.88"/>
+    <!-- stem -->
+    <line x1="64.0" y1="87.04" x2="64.0" y2="102.4"/>
+    <!-- base -->
+    <rect x="38.4" y="102.4" width="51.2" height="10.24" fill="#FFD700"/>
+    <!-- star inside cup -->
+    <polygon points="64.0,38.4 67.84,48.64 78.08,48.64 70.4,55.04 72.96,65.28 64.0,58.88 55.04,65.28 57.6,55.04 49.92,48.64 60.16,48.64"
+             fill="#FFD700" stroke="none"/>
+  </g></svg>

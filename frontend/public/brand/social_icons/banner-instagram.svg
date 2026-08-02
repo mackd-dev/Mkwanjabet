@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111111"/>
+      <stop offset="100%" stop-color="#006B2F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <g transform="translate(43.2,237.6)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 594 594">
+  <rect width="594" height="594" rx="130.68" fill="#111111"/>
+  <!-- swoosh arc curving under both letters -->
+  <path d="M 59.400000000000006,487.08
+           C 118.80000000000001,403.92 267.3,368.28 356.4,392.04
+           C 463.32,415.79999999999995 522.72,463.32 558.36,510.84
+           C 415.79999999999995,570.24 237.60000000000002,546.48 59.400000000000006,558.36 Z"
+        fill="#006B2F" opacity="0.95"/>
+
+  <text x="77.22" y="368.28" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="326.70000000000005" fill="#FFD700">M</text>
+  <text x="273.24" y="368.28" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="900" font-size="326.70000000000005" fill="#00B341">B</text>
+  <!-- small accent dot -->
+  <circle cx="498.96" cy="178.2" r="14.850000000000001" fill="#00B341"/>
+</svg>
+  </g>
+  <text x="432.0" y="540.0" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="900"
+        font-size="367.20000000000005" fill="#FFFFFF" letter-spacing="3">MKWANJA</text>
+  <rect x="432.0" y="594.0" width="54.0" height="43.2" fill="#FFD700"/>
+  <text x="496.8" y="540.0" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="900"
+        font-size="367.20000000000005" fill="#00B341" letter-spacing="3">BET</text>
+  <text x="432.0" y="842.4" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif" font-weight="700"
+        font-size="108.0" fill="#FFD700" letter-spacing="4">PLAY SMART. WIN BIG.</text>
+  <text x="1036.8" y="1036.8" text-anchor="end" font-family="'Montserrat','DejaVu Sans','Liberation Sans Bold',Arial,sans-serif"
+        font-weight="700" font-size="64.8" fill="#FFFFFF" letter-spacing="3">INSTAGRAM</text>
+</svg>
