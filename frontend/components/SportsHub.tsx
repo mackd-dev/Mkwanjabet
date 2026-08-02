@@ -176,7 +176,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     void loadBookingCode(code);
   },[sessionLoading,user]);
   const sportOptions=useMemo(()=>Array.from(new Set(events.map(event=>event.sport))).map(name=>({name,icon:sportIcons[name]??"•",count:events.filter(event=>event.sport===name).length})),[events]);
-  const competitionOptions=useMemo(()=>Array.from(new Set(events.filter(event=>event.sport===sport).map(event=>event.league))).slice(0,8),[events,sport]);
+  const competitionsBySport=useMemo(()=>Object.fromEntries(sportOptions.map(option=>[option.name,Array.from(new Set(events.filter(event=>event.sport===option.name).map(event=>event.league))).slice(0,6)])),[events,sportOptions]);
   const visible=events.filter(e=>{
     const tabMatch=tab==="live" ? e.live : !e.live;
     const sportMatch=e.sport===sport;
@@ -347,9 +347,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     <section className="sports-layout">
       <aside className="sports-left">
         <h3>Sports</h3>
-        {sportOptions.map(({name,icon,count})=><button key={name} onClick={()=>setSport(name)} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>)}
-        <h3>Popular competitions</h3>
-        {competitionOptions.length?competitionOptions.map(x=><button key={x} onClick={()=>setQuery(x)}><span>☆</span>{x}</button>):<small className="sports-empty-competitions">No competitions available</small>}
+        {sportOptions.map(({name,icon,count})=><div className="sports-left-group" key={name}><button onClick={()=>setSport(name)} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>{sport===name&&<div className="sports-left-leagues">{(competitionsBySport[name]??[]).length?(competitionsBySport[name]??[]).map(league=><button key={league} onClick={()=>setQuery(league)}><span>★</span>{league}</button>):<small className="sports-empty-competitions">No competitions available</small>}</div>}</div>)}
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">
