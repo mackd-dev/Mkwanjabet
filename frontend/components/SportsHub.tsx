@@ -53,6 +53,12 @@ function apiMessage(error: unknown) {
 }
 const sportIcons: Record<string,string> = { Football:"⚽", Basketball:"🏀", Tennis:"🎾", Baseball:"◆", Cricket:"●", Volleyball:"🏐", "Ice Hockey":"◉", "Table Tennis":"◌" };
 const depositMethods=[{name:"M-Pesa",code:"MP",provider:"MPESA",hint:"Vodacom"},{name:"Mixx by Yas",code:"MY",provider:"MIXX_BY_YAS",hint:"Yas"},{name:"Airtel Money",code:"AM",provider:"AIRTEL_MONEY",hint:"Airtel"},{name:"HaloPesa",code:"HP",provider:"HALOPESA",hint:"Halotel"}];
+const normalizeTzPhone=(raw:string)=>{
+ const digits=raw.replace(/\D/g,"");
+ if(digits.startsWith("255"))return `+${digits}`;
+ if(digits.startsWith("0"))return `+255${digits.slice(1)}`;
+ return `+255${digits}`;
+};
 const promoBanners=[
   {kicker:"WELCOME BOOST",title:"Start strong",copy:"Top up your wallet and build your first ticket in seconds.",tag:"Fast deposits",metric:"TZS"},
   {kicker:"LIVE ACTION",title:"Bet in-play",copy:"Follow live markets and react while the game is moving.",tag:"Live odds",metric:"LIVE"},
@@ -250,7 +256,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     setDepositBusy(true);
     try{
       const method=depositMethods.find(item=>item.name===depositMethod)??depositMethods[0];
-      const phone=depositPhone.startsWith("+")?depositPhone:"+255"+depositPhone.replace(/^0/,"");
+      const phone=normalizeTzPhone(depositPhone);
       const entry=await authenticatedApiRequest<ApiTransaction>("/wallet/deposit",{method:"POST",body:JSON.stringify({provider:method.provider,phone,amountTzs})});
       await refreshWallet();setDepositNotice("Push USSD sent. Approve the payment on your phone.");void pollSportsDeposit(entry.reference);
     }catch(error){setDepositError(apiMessage(error))}

@@ -15,6 +15,12 @@ type Wallet={availableBalanceTzs:number;withdrawableTzs:number;bonusBalanceTzs:n
 type AccountSession={id:string;userAgent?:string|null;ipAddress?:string|null;createdAt:string;expiresAt:string};
 const money=(n:number)=>new Intl.NumberFormat("en-TZ").format(n)+" TZS";
 const methods=[{name:"M-Pesa",code:"MP",hint:"Vodacom Tanzania"},{name:"Mixx by Yas",code:"MY",hint:"Yas Tanzania"},{name:"Airtel Money",code:"AM",hint:"Airtel Tanzania"},{name:"HaloPesa",code:"HP",hint:"Halotel Tanzania"}];
+const normalizeTzPhone=(raw:string)=>{
+ const digits=raw.replace(/\D/g,"");
+ if(digits.startsWith("255"))return `+${digits}`;
+ if(digits.startsWith("0"))return `+255${digits.slice(1)}`;
+ return `+255${digits}`;
+};
 function shortDate(value:string){try{return new Intl.DateTimeFormat("en-TZ",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(value))}catch{return value}}
 function transactionLabel(type:string){return ({DEPOSIT:"Deposit",WITHDRAWAL:"Withdrawal",BET_STAKE:"Bet stake",BET_WIN:"Bet winnings",BET_REFUND:"Bet refund",CASH_OUT:"Cash out",BONUS_CREDIT:"Bonus credit",BONUS_DEBIT:"Bonus debit",ADJUSTMENT:"Adjustment"} as Record<string,string>)[type]??type}
 function providerLabel(provider?:string|null){return ({MPESA:"M-Pesa",MIXX_BY_YAS:"Mixx by Yas",AIRTEL_MONEY:"Airtel Money",HALOPESA:"HaloPesa",TPESA:"T-Pesa",MANUAL:"Manual"} as Record<string,string>)[provider??""]??"Wallet"}
@@ -71,7 +77,7 @@ export default function AccountHub({initial="wallet"}:{initial?:View}){
   if(!Number.isInteger(amountTzs)||amountTzs<1000||amountTzs>10000000){setWalletError("Enter an amount between 1,000 and 10,000,000 TZS.");return}
   setWalletBusy(type);
   try{
-   const phone=type==="deposit"?(depositPhone.startsWith("+")?depositPhone:"+255"+depositPhone.replace(/^0/,"")):user?.phone;
+   const phone=type==="deposit"?normalizeTzPhone(depositPhone):user?.phone;
    const entry=await authenticatedApiRequest<ApiTransaction>(`/wallet/${type}`,{method:"POST",body:JSON.stringify({provider:providerCode(method),phone,amountTzs})});
    const walletData=await authenticatedApiRequest<Wallet>("/wallet/me");
    setWallet(walletData);setNotice(type==="deposit"?"Push USSD sent. Approve the payment on your phone.":"Withdrawal request received and marked pending.");setView("wallet");

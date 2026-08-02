@@ -21,12 +21,12 @@ export class SonicPesaService {
   }catch(error){if(error instanceof BadGatewayException||error instanceof ServiceUnavailableException)throw error;throw new BadGatewayException("SonicPesa is currently unavailable")}
   finally{clearTimeout(timeout)}
  }
- async createDeposit(userId:string,amountTzs:number,provider:string){
+ async createDeposit(userId:string,amountTzs:number,provider:string,phone:string){
   const user=await this.db.user.findUniqueOrThrow({where:{id:userId}});
   const wallet=await this.db.wallet.upsert({where:{userId},update:{},create:{userId}});
-  const response=await this.request("/payment/create_order",{buyer_email:user.email??"payments@mkwanjabet.co.tz",buyer_name:user.name,buyer_phone:user.phone.replace(/^\+/,""),amount:amountTzs,currency:"TZS"});
+  const response=await this.request("/payment/create_order",{buyer_email:user.email??"payments@mkwanjabet.co.tz",buyer_name:user.name,buyer_phone:phone.replace(/^\+/,""),amount:amountTzs,currency:"TZS"});
   if(!response.data?.order_id)throw new BadGatewayException("SonicPesa returned an invalid order");
-  return this.db.walletTransaction.create({data:{walletId:wallet.id,type:"DEPOSIT",status:"PENDING",amountTzs,provider:provider as never,providerRef:response.data.order_id,reference:`DEP-${Date.now()}`,description:"SonicPesa Push USSD deposit",metadata:{sonicReference:response.data.reference,sonicStatus:response.data.payment_status}}});
+  return this.db.walletTransaction.create({data:{walletId:wallet.id,type:"DEPOSIT",status:"PENDING",amountTzs,provider:provider as never,providerRef:response.data.order_id,reference:`DEP-${Date.now()}`,description:"SonicPesa Push USSD deposit",metadata:{sonicReference:response.data.reference,sonicStatus:response.data.payment_status,phone}}});
  }
  verify(rawBody:Buffer,signature?:string){
   const secret=this.config.get<string>("SONICPESA_API_SECRET");if(!secret||!signature)return false;

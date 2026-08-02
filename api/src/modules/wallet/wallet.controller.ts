@@ -39,7 +39,7 @@ export class WalletController {
     const wallet = await this.db.wallet.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } });
     const daily = await this.db.walletTransaction.aggregate({ _sum: { amountTzs: true }, where: { walletId: wallet.id, type: "DEPOSIT", status: { in: ["PENDING", "PROCESSING", "COMPLETED"] }, createdAt: { gte: this.controls.startOfDay() } } });
     if ((daily._sum.amountTzs ?? 0) + dto.amountTzs > settings.dailyDepositLimitTzs) throw new BadRequestException("Daily deposit limit exceeded");
-    return this.sonic.createDeposit(user.id, dto.amountTzs, dto.provider);
+    return this.sonic.createDeposit(user.id, dto.amountTzs, dto.provider, dto.phone);
   }
 
   @Post("deposit/:reference/status")
