@@ -38,6 +38,7 @@ type ApiTransaction = { reference:string; status:string };
 type PlacedBet = { id: string; ticketCode: string; potentialReturnTzs: number };
 type BookingQuote = { code:string; stakeTzs:number; minimumBookingStakeTzs:number; selectionCount:number; totalOdds:number; potentialReturnTzs:number; availableBalanceTzs:number };
 type BetPrompt = { kind:"deposit"|"confirm"; title:string; message:string; primary:string; secondary:string; stakeTzs:number };
+type AccountBet = { id:string; betId:string; bookingCode?:string; type:"Single"|"Accumulator"; status:"Open"|"Won"|"Lost"|"Void"|"Cashed out"; rawStatus:string; stake:number; odds:number; returnAmount:number; cashOut?:number; date:string; settledAt?:string; selections:{eventId:string;marketId:string;outcomeId:string;match:string;market:string;pick:string;odd:number;state:string}[] };
 function apiMessage(error: unknown) {
   if (error instanceof ApiError && error.payload && typeof error.payload === "object") {
     const payload = error.payload as { message?: unknown; errors?: unknown };
@@ -59,6 +60,8 @@ const normalizeTzPhone=(raw:string)=>{
  if(digits.startsWith("0"))return `+255${digits.slice(1)}`;
  return `+255${digits}`;
 };
+const money=(n:number)=>"TZS "+new Intl.NumberFormat("en-US",{maximumFractionDigits:0}).format(n);
+function shortDate(value:string){try{return new Intl.DateTimeFormat("en-TZ",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(value))}catch{return value}}
 const promoBanners=[
   {name:"Trophy Hunt",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/4124b46f143179262137c2416481cd8f1920x248drn.webp"},
   {name:"First Deposit Bonus",image:"https://v3.traincdn.com/genfiles/banners-admin-api/all/089c920dc75c5521df21ef9d815a0c4f1920x248dn.webp"},
@@ -145,6 +148,12 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [user,setUser]=useState<SessionUser|null>(null);
   const [wallet,setWallet]=useState<Wallet|null>(null);
   const [sessionLoading,setSessionLoading]=useState(true);
+  const [slipTab,setSlipTab]=useState<"betslip"|"my-bets">("betslip");
+  const [sidebarBets,setSidebarBets]=useState<AccountBet[]|null>(null);
+  const [sidebarBetsNotice,setSidebarBetsNotice]=useState("Log in to see your tickets here.");
+  const [expandedSidebarBet,setExpandedSidebarBet]=useState<string|null>(null);
+  const [cashOutBusy,setCashOutBusy]=useState<string|null>(null);
+  const [betsReload,setBetsReload]=useState(0);
 
   useEffect(()=>{
     let mounted=true;
@@ -170,6 +179,18 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   },[]);
 
   useEffect(()=>{
+    if(slipTab!=="my-bets"||sessionLoading)return;
+    if(!user){setSidebarBets([]);setSidebarBetsNotice("Log in to see your tickets here.");return;}
+    let mounted=true;
+    setSidebarBets(null);setSidebarBetsNotice("Loading your tickets...");
+    authenticatedApiRequest<AccountBet[]>("/betting/my-bets").then(data=>{
+      if(!mounted)return;
+      const mapped=data.map(b=>({...b,date:shortDate(b.date),settledAt:b.settledAt?shortDate(b.settledAt):undefined}));
+      setSidebarBets(mapped);setExpandedSidebarBet(current=>current&&mapped.some(b=>b.id===current)?current:mapped[0]?.id??null);setSidebarBetsNotice(mapped.length?`${mapped.length} ticket${mapped.length===1?"":"s"} ready for quick access.`:"No tickets yet. Place a bet and it will show here.");
+    }).catch(()=>{if(mounted){setSidebarBets([]);setSidebarBetsNotice("Could not load your bets right now.")}});
+    return()=>{mounted=false};
+  },[slipTab,sessionLoading,user,betsReload]);
+  useEffect(()=>{
     if(sessionLoading||!user)return;
     const params=new URLSearchParams(window.location.search);const code=params.get("booking");
     if(!code)return;
@@ -192,6 +213,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const visibleLive=visible.filter(event=>event.live).length;
   const totalOdds=useMemo(()=>slip.reduce((n,s)=>n*s.odds,1),[slip]);
   const potential=stake*totalOdds;
+  const latestSidebarBets=(sidebarBets??[]).slice(0,8);
 
 
   useEffect(()=>{
@@ -266,7 +288,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   };
   const submitBet=async()=>{
     setSlipBusy(true);setSlipNotice("");setBetPrompt(null);
-    try{const bet=await authenticatedApiRequest<PlacedBet>("/betting/place",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake,acceptOddsChanges:oddsAccepted})});const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);setSlip([]);setValidation(null);setBookingCode("");setBookingInput("");localStorage.removeItem("mkwanjabet_pending_bet");setSlipNotice("Bet placed. Ticket "+bet.ticketCode)}
+    try{const bet=await authenticatedApiRequest<PlacedBet>("/betting/place",{method:"POST",body:JSON.stringify({selections:apiSelections(),stakeTzs:stake,acceptOddsChanges:oddsAccepted})});const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);setSlip([]);setValidation(null);setBookingCode("");setBookingInput("");localStorage.removeItem("mkwanjabet_pending_bet");setSlipNotice("Bet placed. Ticket "+bet.ticketCode);setSlipTab("my-bets");setBetsReload(value=>value+1)}
     catch(error){const msg=apiMessage(error);setValidation(null);setSlipNotice(msg);if(msg.toLowerCase().includes("insufficient"))setBetPrompt({kind:"deposit",title:"Deposit needed",message:"Your balance is not enough for this stake. Add funds now and come back to this ticket.",primary:"Deposit funds",secondary:"Keep editing",stakeTzs:stake})}finally{setSlipBusy(false)}
   };
   const placeBet=async()=>{
@@ -292,7 +314,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     setSlipBusy(true);setBookingModalError("");
     try{
       const bet=await authenticatedApiRequest<PlacedBet>("/betting/booking/"+encodeURIComponent(bookingQuote.code)+"/place",{method:"POST",body:JSON.stringify({stakeTzs:chosenStake,acceptOddsChanges:true})});
-      const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);setBookingQuote(null);setBookingCode("");setBookingInput("");localStorage.removeItem("mkwanjabet_pending_bet");setSlipNotice("Booking placed. Ticket "+bet.ticketCode);
+      const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);setBookingQuote(null);setBookingCode("");setBookingInput("");localStorage.removeItem("mkwanjabet_pending_bet");setSlipNotice("Booking placed. Ticket "+bet.ticketCode);setSlipTab("my-bets");setBetsReload(value=>value+1);
     }catch(error){setBookingModalError(apiMessage(error))}finally{setSlipBusy(false)}
   };
   const loadBooking=()=>loadBookingCode(bookingInput);
@@ -306,6 +328,13 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   };
 
 
+  const requestCashOut=async(bet:AccountBet)=>{
+    if(!bet.cashOut)return;
+    setCashOutBusy(bet.id);setSidebarBetsNotice("");
+    try{const result=await authenticatedApiRequest<{ok:boolean;message:string;offerTzs?:number}>("/bets/"+encodeURIComponent(bet.betId)+"/cash-out",{method:"POST"});setSidebarBetsNotice(result.message+(result.offerTzs?" · Offer "+money(result.offerTzs):""));setBetsReload(value=>value+1)}
+    catch(error){setSidebarBetsNotice(apiMessage(error))}
+    finally{setCashOutBusy(null)}
+  };
   const toggle=(e:Event,m:Market)=>{
     const id=`${e.id}-${m.outcomeId}`;
     const next={id,eventId:e.id,sport:e.sport,league:e.league,match:`${e.home} vs ${e.away}`,marketId:m.id,market:"Match result",outcomeId:m.outcomeId,pick:m.name,odds:m.odds};
@@ -314,8 +343,8 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
 
   const BetSlip = ({mobile=false}:{mobile?:boolean}) => <aside className={`betslip ${mobile?"mobile-slip-panel":""}`}>
     {mobile && <button className="slip-close" onClick={()=>setMobileSlip(false)}>×</button>}
-    <div className="betslip-tabs"><button className="active">Betslip <b>{slip.length}</b></button><Link href="/my-bets">My Bets</Link></div>
-    {!slip.length?<div className="empty-slip"><span>＋</span><h3>Your betslip is empty</h3><p>Select odds from any event to build your ticket.</p><div><b>Booking code</b><div className="booking-row"><input value={bookingInput} onChange={e=>setBookingInput(e.target.value.toUpperCase())} placeholder="Enter booking code"/><button disabled={slipBusy} onClick={loadBooking}>Load</button></div>{slipNotice&&<small className="slip-notice">{slipNotice}</small>}</div></div>:<>
+    <div className="betslip-tabs"><button className={slipTab==="betslip"?"active":""} onClick={()=>setSlipTab("betslip")}>Betslip <b>{slip.length}</b></button><button className={slipTab==="my-bets"?"active":""} onClick={()=>setSlipTab("my-bets")}>My Bets</button></div>
+    {slipTab==="my-bets"?<div className="sidebar-my-bets"><div className="sidebar-my-bets-head"><div><b>My Bets</b><span>{sidebarBetsNotice}</span></div>{user&&<button onClick={()=>setBetsReload(value=>value+1)}>Refresh</button>}</div>{!user?<div className="sidebar-bets-empty"><b>Log in required</b><span>Sign in to view tickets without leaving the sportsbook.</span><Link href="/login?next=/sports">Log in</Link></div>:sidebarBets===null?<div className="sidebar-bets-empty"><b>Loading tickets</b><span>Fetching your latest wallet-backed bets...</span></div>:!latestSidebarBets.length?<div className="sidebar-bets-empty"><b>No bets yet</b><span>Pick odds from the board and your tickets will appear here.</span></div>:<div className="sidebar-bets-list">{latestSidebarBets.map(b=><article key={b.id} className={`sidebar-bet status-${b.status.toLowerCase().replace(" ","-")}`}><button className="sidebar-bet-main" onClick={()=>setExpandedSidebarBet(expandedSidebarBet===b.id?null:b.id)}><span><small>{b.type.toUpperCase()} · {b.date}</small><b>{b.id}</b><i>{b.bookingCode?`Booking ${b.bookingCode}`:"Direct ticket"}</i></span><strong>{b.status}</strong></button><div className="sidebar-bet-stats"><span><small>Stake</small><b>{money(b.stake)}</b></span><span><small>Odds</small><b>{b.odds.toFixed(2)}</b></span><span><small>{b.status==="Won"?"Win":b.status==="Void"?"Refund":"Return"}</small><b>{money(b.returnAmount)}</b></span></div>{expandedSidebarBet===b.id&&<div className="sidebar-bet-detail"><div className="sidebar-bet-actions"><button onClick={()=>setExpandedSidebarBet(null)}>Hide details</button>{b.cashOut?<button className="cashout" disabled={cashOutBusy===b.id} onClick={()=>requestCashOut(b)}>{cashOutBusy===b.id?"Requesting...":"Cash out "+money(b.cashOut)}</button>:b.status==="Open"?<button disabled>No cash out</button>:<button disabled>Settled</button>}</div>{b.selections.map((s,index)=><div className="sidebar-selection" key={`${b.id}-${s.eventId}-${s.marketId}-${s.outcomeId}`}><span>{index+1}</span><div><b>{s.pick}</b><small>{s.match}</small><small>{s.market}</small></div><strong>{s.odd.toFixed(2)}</strong><i>{s.state}</i></div>)}</div>}</article>)}</div>}</div>:!slip.length?<div className="empty-slip"><span>＋</span><h3>Your betslip is empty</h3><p>Select odds from any event to build your ticket.</p><div><b>Booking code</b><div className="booking-row"><input value={bookingInput} onChange={e=>setBookingInput(e.target.value.toUpperCase())} placeholder="Enter booking code"/><button disabled={slipBusy} onClick={loadBooking}>Load</button></div>{slipNotice&&<small className="slip-notice">{slipNotice}</small>}</div></div>:<>
       <div className="slip-topline"><span>Accumulator</span><button onClick={()=>setSlip([])}>Clear all</button></div>{slipNotice&&<div className="slip-notice">{slipNotice}</div>}
       <div className="slip-items">{slip.map(s=><article key={s.id}><button aria-label="Remove selection" onClick={()=>setSlip(x=>x.filter(v=>v.id!==s.id))}>×</button><small>{s.market}</small><strong>{s.pick} · {s.match}</strong><div><span>Odds</span><b>{s.odds.toFixed(2)}</b></div></article>)}</div>
       <div className="slip-summary">
