@@ -11,14 +11,14 @@ type Props = { mode: Mode };
 const content = {
   login: {
     eyebrow: "KARIBU TENA",
-    title: "Ingia kwenye PrimeOdds.",
-    copy: "Fungua picks zako, subscription na historia ya akaunti yako.",
+    title: "Ingia kwenye Mkwanjabet.",
+    copy: "Fungua wallet, picks na historia ya akaunti yako.",
     submit: "Ingia kwenye Akaunti",
   },
   register: {
-    eyebrow: "ANZA SASA",
+    eyebrow: "FUNGA AKAUNTI",
     title: "Fungua akaunti yako.",
-    copy: "Jiunge na PrimeOdds, hifadhi picks na ufungue Premium kwa urahisi.",
+    copy: "Jiunge na Mkwanjabet, hifadhi picks na ufungue Premium kwa urahisi.",
     submit: "Fungua Akaunti",
   },
   forgot: {
@@ -69,20 +69,21 @@ export default function AuthPage({ mode }: Props) {
   return (
     <main className="auth-page">
       <header className="auth-nav">
-        <Link className="brand" href="/"><span className="brand-mark">P</span><span>Prime<span>Odds</span></span></Link>
+        <Link className="brand" href="/"><span className="brand-mark">M</span><span>Mkwanja<span>Bet</span></span></Link>
         <Link className="auth-back" href="/">← Rudi Nyumbani</Link>
       </header>
 
       <section className="auth-layout">
+        {/* DESKTOP showcase (hidden on mobile via CSS) */}
         <aside className="auth-showcase">
           <div className="auth-showcase-glow"></div>
-          <span className="eyebrow">ENEO LA WANACHAMA WA PRIMEODDS</span>
-          <h2>Picks zako.<br/><em>Sehemu moja salama.</em></h2>
-          <p>Ingia kuona picks za leo, uanachama wako, arifa na historia ya matokeo.</p>
+          <span className="eyebrow">ENEO LA WANACHAMA WA MKWANJABET</span>
+          <h2>Picks zako.<br/><em>Wallet moja salama.</em></h2>
+          <p>Ingia kuona picks za leo, subscription, salio la wallet na historia ya matokeo.</p>
           <div className="auth-feature-list">
-            <article><i>01</i><div><b>Ufikiaji wa Premium</b><span>Fungua picks na uchambuzi uliolipia.</span></div></article>
-            <article><i>02</i><div><b>Hifadhi Picks</b><span>Rudi kwenye mechi muhimu bila kuitafuta tena.</span></div></article>
-            <article><i>03</i><div><b>Arifa Muhimu</b><span>Pata taarifa picks mpya zinapowekwa.</span></div></article>
+            <article><i>01</i><div><b>Wallet Salama</b><span>Fuatilia deposits, stakes na withdrawals.</span></div></article>
+            <article><i>02</i><div><b>Tickets Zako</b><span>Pitia bets zilizo wazi na zilizomalizika.</span></div></article>
+            <article><i>03</i><div><b>Usalama wa Akaunti</b><span>OTP, 2FA na huduma ya mteja 24/7.</span></div></article>
           </div>
           <div className="auth-mini-card">
             <div><span>UHAKIKA WA PICK</span><strong>91%</strong></div>
@@ -92,8 +93,23 @@ export default function AuthPage({ mode }: Props) {
         </aside>
 
         <div className="auth-panel-wrap">
+          {/* MOBILE compact hero (hidden on desktop) */}
+          <div className="auth-mobile-hero">
+            <div className="auth-mobile-bar">
+              <span className="eyebrow">UHAKIKA WA PICK</span>
+              <div className="auth-mobile-meter"><span>91%</span><i><u></u></i></div>
+            </div>
+            <span className="eyebrow eyebrow-mobile">SECURE MKWANJABET ACCOUNT</span>
+            <h2 className="auth-mobile-headline">Wallet yako.<strong>Ticket moja. Akaunti moja.</strong></h2>
+            <ul className="auth-mobile-features">
+              <li><i>01</i><b>Wallet salama</b><span>Deposits, stakes & withdrawals</span></li>
+              <li><i>02</i><b>Tickets</b><span>Picks za leo kwa haraka</span></li>
+              <li><i>03</i><b>Usalama</b><span>OTP na huduma 24/7</span></li>
+            </ul>
+          </div>
+
           <div className="auth-panel">
-            <span className="eyebrow">{page.eyebrow}</span>
+            <span className="eyebrow eyebrow-panel">{page.eyebrow}</span>
             <h1>{page.title}</h1>
             <p className="auth-intro">{page.copy}</p>
 
@@ -148,7 +164,7 @@ export default function AuthPage({ mode }: Props) {
               {isVerify && <>Umeweka namba isiyo sahihi? <Link href="/register">Badilisha mawasiliano</Link></>}
             </p>
           </div>
-          <p className="auth-disclaimer">PrimeOdds hutoa uchambuzi wa michezo pekee. Cheza kwa uwajibikaji.</p>
+          <p className="auth-disclaimer">18+ only. Mkwanjabet hutoa uchambuzi wa michezo pekee. Cheza kwa uwajibikaji kamwe usibet zaidi ya uwezo wako.</p>
         </div>
       </section>
     </main>

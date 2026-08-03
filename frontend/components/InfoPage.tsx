@@ -38,13 +38,13 @@ const content: Record<PageKind, { eyebrow: string; title: string; intro: string;
 export default function InfoPage({ kind }: { kind: PageKind }) {
   const page = content[kind];
   return <main className="info-page">
-    <header className="info-nav"><Link className="brand" href="/"><img src="/brand/icon/mb-mark-color.png" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link><nav><Link href="/sports">Sports</Link><Link href="/live">Live</Link><Link href="/my-bets">My bets</Link><Link className="btn btn-small btn-gold" href="/login">Ingia</Link></nav></header>
+    <header className="info-nav"><Link className="brand" href="/"><span className="brand-mark">P</span><span>Mkwanja<span>Bet</span></span></Link><nav><Link href="/picks">Picks za Leo</Link><Link href="/results">Matokeo</Link><Link href="/premium">Premium</Link><Link className="btn btn-small btn-gold" href="/login">Ingia</Link></nav></header>
     <section className="info-hero"><span className="eyebrow">{page.eyebrow}</span><h1>{page.title}</h1><p>{page.intro}</p></section>
     <section className="info-content">
       {page.sections.map((section, index) => <article key={section.title}><span>0{index + 1}</span><div><h2>{section.title}</h2><p>{section.body}</p></div></article>)}
       {kind === "contact" && <form className="contact-form"><div><label>Jina<input placeholder="Jina lako" /></label><label>Namba ya simu<input placeholder="+255 7xx xxx xxx" /></label></div><label>Email<input type="email" placeholder="wewe@example.com" /></label><label>Ujumbe<textarea rows={6} placeholder="Tueleze tunavyoweza kukusaidia..." /></label><button className="btn btn-gold" type="button">Tuma Ujumbe →</button></form>}
     </section>
-    <section className="info-cta"><h2>Rudi kwenye mchezo.</h2><p>Browse current events or open your secure MkwanjaBet account.</p><div><Link className="btn btn-gold" href="/sports">Browse sports →</Link><Link className="btn btn-outline" href="/dashboard">Dashibodi</Link></div></section>
+    <section className="info-cta"><h2>Rudi kwenye mchezo.</h2><p>Angalia picks za leo au fungua akaunti yako ya MkwanjaBet.</p><div><Link className="btn btn-gold" href="/picks">Picks za Leo →</Link><Link className="btn btn-outline" href="/dashboard">Dashibodi</Link></div></section>
     <footer className="info-footer"><span>© 2026 MkwanjaBet</span><div><Link href="/terms">Masharti</Link><Link href="/privacy">Faragha</Link><Link href="/disclaimer">Tahadhari</Link></div></footer>
   </main>;
 }

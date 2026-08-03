@@ -1,62 +1,51 @@
-# MkwanjaBet V15 — Account, Wallet & My Bets
+# MkwanjaBet V13 — Sportsbook Experience Foundation
 
-Production-oriented sportsbook workspace with Next.js frontend, NestJS API, PostgreSQL and Prisma.
+This workspace contains a separated production architecture plus the V13 sportsbook user experience:
 
-## V15 additions
+- Responsive sportsbook match centre
+- Pre-match and live event tabs
+- Desktop and mobile betslip
+- Accumulator calculations and quick stakes
+- Booking-code interface
+- Jackpot, promotions, live, my-bets and wallet route foundations
+- Responsible-gaming surfaces
 
-- Premium wallet dashboard with available, withdrawable and bonus balances
-- Mobile-money deposit and withdrawal flows (demo UI, API-ready)
-- Transaction history and auditable wallet-ledger schema
-- My Bets with open, won, lost and cash-out ticket details
-- Profile and security screens
-- NIDA KYC workflow and document-upload interface
-- Responsible gaming deposit, loss, stake and session limits
-- New API modules: wallet, bets, KYC and responsible gaming
-- Prisma models for wallet ledger, bet tickets, selections, KYC and player limits
+Core workspace:
 
-## Test locally
+- `frontend/` — Next.js user-facing application
+- `api/` — dedicated NestJS REST API
+- PostgreSQL — isolated Docker database
+- `deploy/` — Nginx and backup assets
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Local development
 
-Open `http://localhost:3000/wallet`, `/my-bets`, `/account/kyc`, or `/account/responsible-gaming`.
+1. Copy `.env.example` to `.env` and replace secrets.
+2. Copy `api/.env.example` to `api/.env` for non-Docker API development.
+3. Run `docker compose up -d mkwanjabet-postgres`.
+4. In `api/`: `npm install`, `npm run prisma:generate`, `npm run db:migrate -- --name initial`, `npm run db:seed`, `npm run start:dev`.
+5. In `frontend/`: `npm install`, copy `.env.example` to `.env.local`, then `npm run dev`.
 
-For the API, regenerate Prisma after pulling V15:
+## Production
 
-```bash
-cd api
-npm install
-npx prisma generate
-npx prisma migrate dev --name v15_wallet_bets_kyc
-npm run start:dev
-```
+See `DEPLOY-HETZNER.md`.
 
-Payment requests and KYC uploads remain demo/API-ready until production provider credentials, object storage and regulatory workflows are connected.
+## Main API routes
 
-## V16 betting engine
+- `GET /api/v1/health`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+- `GET /api/v1/picks/today`
+- `GET /api/v1/picks/:slug`
+- `GET /api/v1/results`
+- `GET /api/v1/plans`
+- `GET|PATCH /api/v1/users/me`
+- `GET|POST|DELETE /api/v1/saved-picks`
+- `GET|PATCH /api/v1/notifications`
+- `GET /api/v1/subscriptions/me`
+- `GET /api/v1/payments/me`
+- `POST /api/v1/payments/initiate`
 
-V16 adds real booking codes, stake and payout validation, atomic wallet locking, accepted bet tickets, status history, per-outcome exposure tracking, cash-out offer storage, and administrator risk endpoints.
-
-New public endpoints:
-
-- `POST /api/v1/betting/booking`
-- `GET /api/v1/betting/booking/:code`
-
-Authenticated endpoints:
-
-- `POST /api/v1/betting/validate`
-- `POST /api/v1/betting/place`
-
-Administrator endpoints:
-
-- `GET /api/v1/admin/risk/dashboard`
-- `GET /api/v1/admin/risk/bets`
-- `GET /api/v1/admin/risk/bookings`
-- `PATCH /api/v1/admin/risk/bookings/:id/cancel`
-- `GET /api/v1/admin/risk/limits`
-- `POST /api/v1/admin/risk/limits`
-
-Run `npm install`, `npx prisma generate`, and `npx prisma migrate dev` inside `api/` before starting the updated API.
+Payment initiation currently creates a pending payment record. Provider callbacks and real mobile-money integration are intentionally not faked and must be implemented with the selected payment gateway.

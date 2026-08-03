@@ -11,9 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "db:push": "prisma db push",
-    "test": "tsx --test test/*.test.ts",
-    "db:cleanup-demo": "tsx scripts/remove-demo-data.ts"
+    "db:push": "prisma db push"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

@@ -1,1 +1,5 @@
-import { redirect } from "next/navigation"; export default function Page(){redirect("/sports")}
+import ResultsPage from "@/components/ResultsPage";
+
+export default function Page() {
+  return <ResultsPage />;
+}

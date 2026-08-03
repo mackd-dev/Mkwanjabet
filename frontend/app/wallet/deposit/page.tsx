@@ -1,1 +1,1 @@
-import AccountHub from "../../../components/AccountHub"; export default function Page(){return <AccountHub initial="deposit"/>}
+import SportsbookInnerPage from "../../../components/SportsbookInnerPage"; export default function Page(){return <SportsbookInnerPage type="deposit"/>}

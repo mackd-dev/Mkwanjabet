@@ -1,5 +1,5 @@
-import AccountHub from "../../components/AccountHub";
+import DashboardPage from "../../components/DashboardPage";
 
 export default function Page() {
-  return <AccountHub initial="wallet" />;
+  return <DashboardPage />;
 }

@@ -1,1 +1,2 @@
-import { redirect } from "next/navigation"; export default function Page(){redirect("/sports")}
+import CheckoutPage from "../../components/CheckoutPage";
+export default function Page(){ return <CheckoutPage/>; }

@@ -1,1 +1,1 @@
-import SportsHub from "@/components/SportsHub"; export default function Page(){return <SportsHub initialTab="live"/>}
+import SportsbookInnerPage from "../../components/SportsbookInnerPage"; export default function Page(){return <SportsbookInnerPage type="live"/>}
