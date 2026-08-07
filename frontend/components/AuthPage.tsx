@@ -3,22 +3,36 @@
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ApiError, apiRequest } from "@/lib/api-client";
+import { saveSession } from "@/lib/session";
 
 type Mode = "login" | "register" | "forgot" | "verify";
 
 type Props = { mode: Mode };
 
+type LoginResponse = {
+  user: {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string | null;
+    role: string;
+  };
+  accessToken: string;
+  refreshToken: string;
+};
+
 const content = {
   login: {
     eyebrow: "KARIBU TENA",
     title: "Ingia kwenye MkwanjaBet.",
-    copy: "Fungua picks zako, subscription na historia ya akaunti yako.",
+    copy: "Access your wallet, tickets and account activity.",
     submit: "Ingia kwenye Akaunti",
   },
   register: {
     eyebrow: "ANZA SASA",
     title: "Fungua akaunti yako.",
-    copy: "Jiunge na MkwanjaBet, hifadhi picks na ufungue Premium kwa urahisi.",
+    copy: "Create your account to fund your wallet and place secure tickets.",
     submit: "Fungua Akaunti",
   },
   forgot: {
@@ -39,6 +53,8 @@ export default function AuthPage({ mode }: Props) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const page = content[mode];
   const isLogin = mode === "login";
@@ -48,16 +64,43 @@ export default function AuthPage({ mode }: Props) {
 
   const message = useMemo(() => {
     if (!submitted) return "";
-    if (isLogin) return "Demo: login imepokelewa. Backend itaunganisha akaunti halisi baadaye.";
-    if (isRegister) return "Demo: taarifa zimepokelewa. Hatua inayofuata ni uthibitisho wa akaunti.";
-    if (isForgot) return "Demo: namba ya uthibitisho imetumwa.";
-    return "Demo: akaunti imethibitishwa kwa mafanikio.";
+    if (isLogin) return "Umeingia kwenye akaunti yako. Tunakupeleka kwenye dashibodi.";
+    if (isRegister) return "Account created successfully.";
+    if (isForgot) return "Password recovery is not available yet. Contact support for account recovery.";
+    return "Verification is not available yet.";
   }, [submitted, isLogin, isRegister, isForgot]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
+    if (isLogin || isRegister) {
+      setBusy(true);
+      const form = new FormData(event.currentTarget);
+      const phone = normalizeIdentifier(String(form.get("identifier") ?? ""));
+      const password = String(form.get("password") ?? "");
+      const firstName = String(form.get("firstName") ?? "").trim();
+      const lastName = String(form.get("lastName") ?? "").trim();
+      const email = String(form.get("email") ?? "").trim().toLowerCase();
+      try {
+        const session = await apiRequest<LoginResponse>(isLogin ? "/auth/login" : "/auth/register", {
+          method: "POST",
+          body: JSON.stringify(isLogin
+            ? { identifier: phone, password }
+            : { name: `${firstName} ${lastName}`.trim(), phone, ...(email ? { email } : {}), password }),
+        });
+        saveSession(session);
+        setSubmitted(true);
+        const requested = new URLSearchParams(window.location.search).get("next");
+        router.push(requested?.startsWith("/") ? requested : "/sports");
+      } catch (caught) {
+        setSubmitted(false);
+        setError(getApiErrorMessage(caught));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     setSubmitted(true);
-    if (isLogin) setTimeout(() => router.push("/dashboard"), 500);
   }
 
   function updateOtp(index: number, value: string) {
@@ -69,20 +112,20 @@ export default function AuthPage({ mode }: Props) {
   return (
     <main className="auth-page">
       <header className="auth-nav">
-        <Link className="brand" href="/"><span className="brand-mark">P</span><span>Mkwanja<span>Bet</span></span></Link>
+        <Link className="brand" href="/"><img src="/brand/icon/mb-mark-color.png" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link>
         <Link className="auth-back" href="/">← Rudi Nyumbani</Link>
       </header>
 
       <section className="auth-layout">
         <aside className="auth-showcase">
           <div className="auth-showcase-glow"></div>
-          <span className="eyebrow">ENEO LA WANACHAMA WA MKWANJABET</span>
-          <h2>Picks zako.<br/><em>Sehemu moja salama.</em></h2>
-          <p>Ingia kuona picks za leo, uanachama wako, arifa na historia ya matokeo.</p>
+          <span className="eyebrow">SECURE MKWANJABET ACCOUNT</span>
+          <h2>Your wallet.<br/><em>Your tickets. One account.</em></h2>
+          <p>Sign in to manage funds, place bets and track every ticket.</p>
           <div className="auth-feature-list">
-            <article><i>01</i><div><b>Ufikiaji wa Premium</b><span>Fungua picks na uchambuzi uliolipia.</span></div></article>
-            <article><i>02</i><div><b>Hifadhi Picks</b><span>Rudi kwenye mechi muhimu bila kuitafuta tena.</span></div></article>
-            <article><i>03</i><div><b>Arifa Muhimu</b><span>Pata taarifa picks mpya zinapowekwa.</span></div></article>
+            <article><i>01</i><div><b>Secure wallet</b><span>Track deposits, stakes and winnings.</span></div></article>
+            <article><i>02</i><div><b>Track tickets</b><span>Review open and settled bets at any time.</span></div></article>
+            <article><i>03</i><div><b>Account security</b><span>Manage your profile and active sessions.</span></div></article>
           </div>
           <div className="auth-mini-card">
             <div><span>UHAKIKA WA PICK</span><strong>91%</strong></div>
@@ -100,24 +143,24 @@ export default function AuthPage({ mode }: Props) {
             <form onSubmit={handleSubmit} className="auth-form">
               {isRegister && (
                 <div className="auth-two-col">
-                  <label><span>Jina la kwanza</span><input required placeholder="Mfano: Asha" /></label>
-                  <label><span>Jina la mwisho</span><input required placeholder="Mfano: Salum" /></label>
+                  <label><span>Jina la kwanza</span><input required name="firstName" minLength={2} placeholder="Mfano: Asha" /></label>
+                  <label><span>Jina la mwisho</span><input required name="lastName" minLength={2} placeholder="Mfano: Salum" /></label>
                 </div>
               )}
 
               {!isVerify && (
                 <label>
                   <span>{isForgot ? "Namba ya simu au barua pepe" : "Namba ya simu"}</span>
-                  <div className="phone-field">{!isForgot && <b>+255</b>}<input required type={isForgot ? "text" : "tel"} placeholder={isForgot ? "07XXXXXXXX au email@example.com" : "7XX XXX XXX"} /></div>
+                  <div className="phone-field">{!isForgot && <b>+255</b>}<input required name="identifier" type={isForgot ? "text" : "tel"} placeholder={isForgot ? "07XXXXXXXX au email@example.com" : "7XX XXX XXX"} /></div>
                 </label>
               )}
 
-              {isRegister && <label><span>Barua pepe <small>(si lazima)</small></span><input type="email" placeholder="jina@example.com" /></label>}
+              {isRegister && <label><span>Barua pepe <small>(si lazima)</small></span><input name="email" type="email" placeholder="jina@example.com" /></label>}
 
               {(isLogin || isRegister) && (
                 <label>
                   <span>Nenosiri</span>
-                  <div className="password-field"><input required minLength={6} type={showPassword ? "text" : "password"} placeholder="Angalau tarakimu 6" /><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Ficha" : "Onyesha"}</button></div>
+                  <div className="password-field"><input required name="password" minLength={8} type={showPassword ? "text" : "password"} placeholder="Angalau tarakimu 8" /><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Ficha" : "Onyesha"}</button></div>
                 </label>
               )}
 
@@ -134,7 +177,8 @@ export default function AuthPage({ mode }: Props) {
                 </div>
               )}
 
-              <button className="btn btn-gold auth-submit" type="submit">{page.submit} →</button>
+              <button className="btn btn-gold auth-submit" type="submit" disabled={busy}>{busy ? (isRegister ? "Inafungua akaunti..." : "Inaingia...") : page.submit} →</button>
+              {error && <div className="auth-error" role="alert">{error}</div>}
               {message && <div className="auth-success">✓ {message}</div>}
             </form>
 
@@ -148,9 +192,36 @@ export default function AuthPage({ mode }: Props) {
               {isVerify && <>Umeweka namba isiyo sahihi? <Link href="/register">Badilisha mawasiliano</Link></>}
             </p>
           </div>
-          <p className="auth-disclaimer">MkwanjaBet hutoa uchambuzi wa michezo pekee. Cheza kwa uwajibikaji.</p>
+          <p className="auth-disclaimer">18+ only. Play responsibly and never stake more than you can afford to lose.</p>
         </div>
       </section>
     </main>
   );
 }
+function normalizeIdentifier(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.includes("@")) return trimmed.toLowerCase();
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.startsWith("255")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+255${digits.slice(1)}`;
+  return `+255${digits}`;
+}
+
+function getApiErrorMessage(caught: unknown) {
+  if (caught instanceof ApiError && caught.payload && typeof caught.payload === "object") {
+    const payload = caught.payload as { message?: unknown; error?: unknown };
+    if (typeof payload.message === "string") return payload.message;
+    if (typeof payload.error === "string") return payload.error;
+    if (payload.error && typeof payload.error === "object") {
+      const error = payload.error as { message?: unknown };
+      if (typeof error.message === "string") return error.message;
+    }
+  }
+  return "Imeshindikana kuingia. Hakikisha API inaendeshwa kisha jaribu tena.";
+}
+
+
+
+
+
+

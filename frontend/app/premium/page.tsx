@@ -1,5 +1,1 @@
-import PremiumPage from "@/components/PremiumPage";
-
-export default function Page() {
-  return <PremiumPage />;
-}
+import { redirect } from "next/navigation"; export default function Page(){redirect("/sports")}

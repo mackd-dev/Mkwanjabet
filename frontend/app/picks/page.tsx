@@ -1,5 +1,1 @@
-import PicksPage from "@/components/PicksPage";
-
-export default function Page() {
-  return <PicksPage />;
-}
+import { redirect } from "next/navigation"; export default function Page(){redirect("/sports")}

@@ -1,5 +1,5 @@
-import MkwanjaBetLanding from "@/components/MkwanjaBetLanding";
+import SportsHub from "@/components/SportsHub";
 
 export default function HomePage() {
-  return <MkwanjaBetLanding />;
+  return <SportsHub />;
 }

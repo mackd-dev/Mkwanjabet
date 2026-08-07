@@ -1,1 +1,5 @@
-import SportsbookInnerPage from "../../components/SportsbookInnerPage"; export default function Page(){return <SportsbookInnerPage type="bets"/>}
+import AccountHub from "../../components/AccountHub";
+
+export default function Page() {
+  return <AccountHub initial="bets" />;
+}
