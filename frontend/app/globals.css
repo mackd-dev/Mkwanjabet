@@ -181,3 +181,36 @@ img,svg{max-width:100%}
 
 /* Betslip readability on white panel */
 .betslip{color:#102117!important}.betslip small,.betslip span,.betslip label,.betslip p,.slip-items article small,.slip-items article div span,.slip-summary label,.slip-summary p span,.odds-change{color:#52645a!important}.betslip h3,.betslip b,.betslip strong,.slip-items article strong,.slip-items article div b,.slip-summary p,.slip-summary p b,.slip-summary p strong{color:#102117!important}.slip-items article>button{color:#102117!important}.betslip input{color:#102117!important;background:#fff!important}.betslip-tabs button{color:#102117!important}.betslip-tabs button.active{color:#06130b!important}.place-bet-btn{color:#102117!important}
+
+/* League-grouped event board + bigger, bolder typography (TZ mobile-first redesign) */
+.league-group{margin:0 0 14px}
+.league-group:last-child{margin-bottom:0}
+.league-group-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(90deg,#0f2a1c,#123522 70%);border:1px solid #0a2115;border-bottom:0;border-radius:10px 10px 0 0;color:#fff}
+.league-group-head img{width:22px;height:22px;border-radius:50%;object-fit:contain;background:rgba(255,255,255,.9);flex:0 0 auto}
+.league-group-flag{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(251,191,36,.35);color:#fbbf24;font-style:normal;font-size:9px;font-weight:900;flex:0 0 auto}
+.league-group-head span{min-width:0;flex:1 1 auto;display:grid;gap:1px}
+.league-group-head b{font-size:13px;font-weight:900;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.league-group-head small{font-size:11px;color:#bcd0c3;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.league-group-head em{flex:0 0 auto;font-style:normal;font-size:11px;font-weight:900;color:#123522;background:#fbbf24;border-radius:20px;padding:3px 9px}
+.league-group .event-card{border-radius:0}
+.league-group .event-card:first-of-type{border-top:0}
+.league-group .event-card:last-of-type{border-radius:0 0 10px 10px}
+.sports-content .api-football-teams strong{font-size:15px;font-weight:900;color:#08190f;letter-spacing:-.01em}
+.sports-content .teams>div span{font-size:16px;font-weight:950}
+.sports-content .teams small{font-size:11px;font-weight:600}
+.sports-content .event-meta time{font-size:13px;font-weight:900}
+.sports-content .event-meta time.is-live{color:#fff;background:#e11d2e;border-radius:20px;padding:4px 10px;display:inline-flex;align-items:center;gap:5px}
+.sports-content .event-meta time.is-live i{background:#fff}
+.sports-content .odds-grid button span{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:#3c5346}
+.sports-content .odds-grid button b{font-size:18px;font-weight:950}
+.sports-content .odds-grid button.selected span{color:#e7f8ec}
+.sports-content .odds-grid .more{font-size:16px}
+@media(max-width:760px){
+  .league-group-head{padding:9px 12px;border-radius:8px 8px 0 0}
+  .league-group-head b{font-size:12px}
+  .league-group-head small{font-size:10px}
+  .league-group .event-card:last-of-type{border-radius:0 0 8px 8px}
+  .sports-content .api-football-teams strong{font-size:14px}
+  .sports-content .odds-grid button b{font-size:16px}
+  .sports-content .odds-grid button span{font-size:11px}
+}

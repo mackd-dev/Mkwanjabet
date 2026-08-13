@@ -207,6 +207,17 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     const timeMatch=timeFilter==="all"||e.live||(timeFilter==="today"&&eventDate>=startOfToday&&eventDate<startOfTomorrow)||(timeFilter==="tomorrow"&&eventDate>=startOfTomorrow&&eventDate<endOfTomorrow)||(timeFilter==="soon"&&eventDate>=now&&eventDate.getTime()-now.getTime()<=3*60*60*1000);
     return tabMatch && sportMatch && timeMatch && q.includes(query.toLowerCase());
   });
+  const groupedVisible=useMemo(()=>{
+    const groups:{key:string;country:string;league:string;leagueLogo?:string;events:Event[]}[]=[];
+    const index=new Map<string,number>();
+    for(const e of visible){
+      const key=`${e.country}|${e.league}`;
+      let i=index.get(key);
+      if(i===undefined){i=groups.length;index.set(key,i);groups.push({key,country:e.country,league:e.league,leagueLogo:e.leagueLogo,events:[]});}
+      groups[i].events.push(e);
+    }
+    return groups;
+  },[visible]);
   const featuredEvent=visible[0]??events[0];
   const activePromo=promoBanners[bannerIndex%promoBanners.length];
   const visibleWithOdds=visible.filter(event=>event.markets.length>0).length;
@@ -389,11 +400,14 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
         <div className="market-labels events-board-head"><div><span>{tab==="live"?"Live now":"Pre-match events"}</span><small>{visible.length} events · {visibleWithOdds} priced{visibleLive?` · ${visibleLive} live`:""}</small></div><div><b>1</b><b>X</b><b>2</b><b>More</b></div></div>
         <div className="event-list" id="events">
           {!eventsLoading&&visible.length===0&&<div className="no-events"><b>No events found</b><span>Try another sport, tab or search.</span></div>}
-          {visible.map(e=><article className="event-card" key={e.id}>
-            <div className="event-meta"><small><b>{e.country}</b><span>{e.league}</span></small><div><button aria-label={`Save ${e.home} vs ${e.away}`}>☆</button><time>{e.live?<><i/> LIVE {e.minute}</>:formatTime(e.time)}</time></div></div>
-            <div className="event-body"><Link className="teams api-football-teams" href={`/sports/match/${e.id}`}><div><TeamLogo src={e.homeLogo} label={e.home}/><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><TeamLogo src={e.awayLogo} label={e.away}/><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"} · {e.more?`${e.more} extra markets`:"team visuals ready"}</small></Link><div className="odds-grid">{e.markets.length?e.markets.map(m=>{const id=`${e.id}-${m.outcomeId}`;return <button key={m.outcomeId} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>}):<div className="odds-unavailable"><b>Odds pending</b><span>Fixture loaded from API-Football free feed</span></div>}<button className="more" aria-label={`Open more markets for ${e.home} vs ${e.away}`}>+{e.more}</button></div></div>
-            <div className="event-footer"><button>▥ Stats</button><button>◉ Tracker</button><span>{e.live?e.score:"Starts "+formatTime(e.time)}</span></div>
-          </article>)}
+          {groupedVisible.map(group=><div className="league-group" key={group.key}>
+            <div className="league-group-head">{group.leagueLogo?<img src={group.leagueLogo} alt="" loading="lazy"/>:<i className="league-group-flag">{group.country.slice(0,2).toUpperCase()}</i>}<span><b>{group.country}</b><small>{group.league}</small></span><em>{group.events.length}</em></div>
+            {group.events.map(e=><article className="event-card" key={e.id}>
+              <div className="event-meta"><button aria-label={`Save ${e.home} vs ${e.away}`}>☆</button><time className={e.live?"is-live":""}>{e.live?<><i/> LIVE {e.minute}</>:formatTime(e.time)}</time></div>
+              <div className="event-body"><Link className="teams api-football-teams" href={`/sports/match/${e.id}`}><div><TeamLogo src={e.homeLogo} label={e.home}/><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><TeamLogo src={e.awayLogo} label={e.away}/><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"} · {e.more?`${e.more} extra markets`:"team visuals ready"}</small></Link><div className="odds-grid">{e.markets.length?e.markets.map(m=>{const id=`${e.id}-${m.outcomeId}`;return <button key={m.outcomeId} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>}):<div className="odds-unavailable"><b>Odds pending</b><span>Fixture loaded from API-Football free feed</span></div>}<button className="more" aria-label={`Open more markets for ${e.home} vs ${e.away}`}>+{e.more}</button></div></div>
+              <div className="event-footer"><button>▥ Stats</button><button>◉ Tracker</button><span>{e.live?e.score:"Starts "+formatTime(e.time)}</span></div>
+            </article>)}
+          </div>)}
         </div>
         <div className="responsible-strip"><b>18+</b><span><strong>Bet responsibly.</strong> Set limits, take breaks and never chase losses.</span><Link href="/responsible-play">Responsible gaming</Link></div>
       </section>
