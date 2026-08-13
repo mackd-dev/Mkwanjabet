@@ -248,3 +248,9 @@ img,svg{max-width:100%}
 @media(max-width:760px){
   .sports-content .api-football-teams strong{font-size:16px}
 }
+
+/* Fix team-name grid collapse (nested grid + -webkit-line-clamp intrinsic-size bug) and odds-grid white background */
+.sports-content .teams{grid-template-columns:1fr;width:100%}
+.sports-content .api-football-teams>div{width:100%}
+.sports-content .api-football-teams strong{width:100%}
+.sports-content .odds-grid{background:transparent}
