@@ -214,3 +214,37 @@ img,svg{max-width:100%}
   .sports-content .odds-grid button b{font-size:16px}
   .sports-content .odds-grid button span{font-size:11px}
 }
+
+/* Full dark event board (cards match LeonBet/SportyBet dark theme) + larger team names */
+.sports-content .event-list{background:transparent}
+.sports-content .event-card{background:#141f18;border-color:rgba(255,255,255,.08);box-shadow:0 1px 0 rgba(0,0,0,.3)}
+.sports-content .event-card:hover{border-color:rgba(251,191,36,.35);box-shadow:0 10px 26px rgba(0,0,0,.35);background:#182a1f}
+.sports-content .event-meta{background:#101a14;border-bottom:1px solid rgba(255,255,255,.06)}
+.sports-content .event-meta small,.sports-content .event-meta small span{color:#9fb3a6}
+.sports-content .event-meta small b{color:#e9f4ed}
+.sports-content .event-meta button{color:#8ea297}
+.sports-content .event-meta button:hover{background:rgba(255,255,255,.06);border-color:rgba(251,191,36,.3);color:#fbbf24}
+.sports-content .event-meta time{color:#d6e6db}
+.sports-content .teams{color:#f2f8f4}
+.sports-content .api-football-teams strong{color:#f7fbf8;font-size:17px;font-weight:900}
+.sports-content .teams>div span{color:#3ddc7c;font-size:16px}
+.sports-content .teams small{color:#8ba396}
+.sports-content .team-logo{background:rgba(255,255,255,.08);box-shadow:0 8px 18px rgba(0,0,0,.35)}
+.sports-content .team-logo.fallback{background:#1c2d22;color:#fbbf24}
+.sports-content .odds-grid button{background:#182a1f;border-color:rgba(255,255,255,.09)}
+.sports-content .odds-grid button:hover{background:#1f3527;border-color:rgba(251,191,36,.45)}
+.sports-content .odds-grid button span{color:#9fb3a6}
+.sports-content .odds-grid button b{color:#f7fbf8}
+.sports-content .odds-grid button.selected{background:#16a34a;border-color:#16a34a}
+.sports-content .odds-grid button.selected span,.sports-content .odds-grid button.selected b{color:#fff}
+.sports-content .odds-grid .more{background:#182a1f;color:#fbbf24}
+.sports-content .odds-unavailable{background:#101a14;border-color:rgba(255,255,255,.1);color:#d7e5dc}
+.sports-content .odds-unavailable span{color:#8ea297}
+.sports-content .event-footer{background:#101a14;border-top:1px solid rgba(255,255,255,.06)}
+.sports-content .event-footer button{color:#8ea297}
+.sports-content .event-footer span{color:#9fb3a6}
+.sports-content .no-events{background:#141f18;border-color:rgba(255,255,255,.08);color:#e9f4ed}
+.sports-content .sports-data-notice{background:#141f18;border-color:rgba(255,255,255,.08);color:#d6e6db}
+@media(max-width:760px){
+  .sports-content .api-football-teams strong{font-size:16px}
+}
