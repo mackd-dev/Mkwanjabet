@@ -1,10 +1,10 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { MarketStatus, OutcomeStatus } from "@prisma/client";
+import { MarketStatus, OutcomeStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slug } from "./odds-feed.service";
 
-type OddsApiOutcome = { name: string; price: number };
+type OddsApiOutcome = { name: string; price: number; point?: number };
 type OddsApiMarket = { key: string; outcomes: OddsApiOutcome[] };
 type OddsApiBookmaker = { key: string; title: string; last_update: string; markets: OddsApiMarket[] };
 type OddsApiEvent = {
@@ -15,11 +15,15 @@ type FeedStatus = {
   configured: boolean; running: boolean; lastStartedAt: string | null; lastCompletedAt: string | null;
   lastError: string | null; lastMatched: number; lastSkipped: number; requestsRemaining: number | null; requestsUsed: number | null;
 };
+type DbOutcome = { key: string; name: string; price: number };
+type DbMarket = { key: string; line: number | null; name: string; outcomes: DbOutcome[] };
 
 const DEFAULT_SPORT_KEYS = [
   "soccer_epl", "soccer_uefa_champs_league", "soccer_spain_la_liga", "soccer_italy_serie_a",
   "soccer_germany_bundesliga", "soccer_france_ligue_one", "soccer_uefa_europa_league",
 ].join(",");
+
+const DEFAULT_MARKETS = "h2h,totals,btts,draw_no_bet,double_chance";
 
 @Injectable()
 export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
@@ -105,36 +109,29 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
     if (!match) return false;
 
     const bookmaker = source.bookmakers?.[0];
-    const market = bookmaker?.markets?.find(m => m.key === "h2h");
-    if (!market || market.outcomes.length < 2) return false;
-
+    if (!bookmaker) return false;
     const marginFactor = 1 - Math.max(0, Math.min(0.25, Number(this.config.get("ODDS_API_MARGIN_PCT") ?? 0.06)));
-    const priceFor = (outcomeName: string) => market.outcomes.find(o => o.name === outcomeName)?.price;
-    const homePrice = priceFor(source.home_team);
-    const awayPrice = priceFor(source.away_team);
-    const drawPrice = market.outcomes.find(o => o.name.toLowerCase() === "draw")?.price;
-    if (!homePrice || !awayPrice) return false;
 
-    const outcomes = [
-      { key: "home", name: source.home_team, price: shaded(homePrice, marginFactor) },
-      ...(drawPrice ? [{ key: "draw", name: "Draw", price: shaded(drawPrice, marginFactor) }] : []),
-      { key: "away", name: source.away_team, price: shaded(awayPrice, marginFactor) },
-    ];
+    const dbMarkets = buildDbMarkets(source, bookmaker, marginFactor);
+    if (!dbMarkets.length) return false;
 
     await this.db.$transaction(async tx => {
-      let dbMarket = await tx.market.findFirst({ where: { eventId: match.id, key: "match-winner", line: null } });
-      dbMarket = dbMarket
-        ? await tx.market.update({ where: { id: dbMarket.id }, data: { name: "Match winner", status: MarketStatus.OPEN, suspendedAt: null, suspensionReason: null } })
-        : await tx.market.create({ data: { eventId: match.id, key: "match-winner", name: "Match winner", status: MarketStatus.OPEN } });
-      for (const [sortOrder, item] of outcomes.entries()) {
-        const existing = await tx.outcome.findUnique({ where: { marketId_key: { marketId: dbMarket.id, key: item.key } } });
-        const outcome = await tx.outcome.upsert({
-          where: { marketId_key: { marketId: dbMarket.id, key: item.key } },
-          create: { marketId: dbMarket.id, key: item.key, name: item.name, status: OutcomeStatus.ACTIVE, currentOdds: item.price, sortOrder },
-          update: { name: item.name, status: OutcomeStatus.ACTIVE, currentOdds: item.price, sortOrder },
-        });
-        if (Number(existing?.currentOdds ?? 0) !== item.price) {
-          await tx.odds.create({ data: { outcomeId: outcome.id, price: item.price, previousPrice: existing?.currentOdds, source: `odds-api:${bookmaker.key}` } });
+      for (const dbMarket of dbMarkets) {
+        const lineValue = dbMarket.line == null ? null : new Prisma.Decimal(dbMarket.line);
+        let market = await tx.market.findFirst({ where: { eventId: match.id, key: dbMarket.key, line: lineValue } });
+        market = market
+          ? await tx.market.update({ where: { id: market.id }, data: { name: dbMarket.name, status: MarketStatus.OPEN, suspendedAt: null, suspensionReason: null } })
+          : await tx.market.create({ data: { eventId: match.id, key: dbMarket.key, name: dbMarket.name, line: lineValue, status: MarketStatus.OPEN } });
+        for (const [sortOrder, item] of dbMarket.outcomes.entries()) {
+          const existing = await tx.outcome.findUnique({ where: { marketId_key: { marketId: market.id, key: item.key } } });
+          const outcome = await tx.outcome.upsert({
+            where: { marketId_key: { marketId: market.id, key: item.key } },
+            create: { marketId: market.id, key: item.key, name: item.name, status: OutcomeStatus.ACTIVE, currentOdds: item.price, sortOrder },
+            update: { name: item.name, status: OutcomeStatus.ACTIVE, currentOdds: item.price, sortOrder },
+          });
+          if (Number(existing?.currentOdds ?? 0) !== item.price) {
+            await tx.odds.create({ data: { outcomeId: outcome.id, price: item.price, previousPrice: existing?.currentOdds, source: `odds-api:${bookmaker.key}` } });
+          }
         }
       }
     });
@@ -148,7 +145,8 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
   private url(sportKey: string) {
     const baseUrl = this.config.get<string>("ODDS_API_BASE_URL") ?? "https://api.the-odds-api.com";
     const regions = this.config.get<string>("ODDS_API_REGIONS") ?? "eu";
-    const params = new URLSearchParams({ apiKey: this.apiKey(), regions, markets: "h2h", oddsFormat: "decimal" });
+    const markets = this.config.get<string>("ODDS_API_MARKETS") ?? DEFAULT_MARKETS;
+    const params = new URLSearchParams({ apiKey: this.apiKey(), regions, markets, oddsFormat: "decimal" });
     return `${baseUrl.replace(/\/$/, "")}/v4/sports/${sportKey}/odds/?${params}`;
   }
 
@@ -171,4 +169,104 @@ function shaded(price: number, marginFactor: number) {
 function teamKey(name: string) {
   const normalized = slug(name).replace(/-(fc|cf|sc|afc|cd|ca|ac)$/, "").replace(/^(fc|cf|sc|afc|cd|ca|ac)-/, "");
   return normalized;
+}
+
+function buildDbMarkets(source: OddsApiEvent, bookmaker: OddsApiBookmaker, marginFactor: number): DbMarket[] {
+  const results: DbMarket[] = [];
+  const priced = (price: number) => shaded(price, marginFactor);
+
+  const h2h = bookmaker.markets.find(m => m.key === "h2h");
+  if (h2h) {
+    const home = h2h.outcomes.find(o => o.name === source.home_team)?.price;
+    const away = h2h.outcomes.find(o => o.name === source.away_team)?.price;
+    const draw = h2h.outcomes.find(o => o.name.toLowerCase() === "draw")?.price;
+    if (home && away) {
+      results.push({
+        key: "match-winner", line: null, name: "Match winner",
+        outcomes: [
+          { key: "home", name: source.home_team, price: priced(home) },
+          ...(draw ? [{ key: "draw", name: "Draw", price: priced(draw) }] : []),
+          { key: "away", name: source.away_team, price: priced(away) },
+        ],
+      });
+    }
+  }
+
+  const btts = bookmaker.markets.find(m => m.key === "btts");
+  if (btts) {
+    const yes = btts.outcomes.find(o => o.name.toLowerCase() === "yes")?.price;
+    const no = btts.outcomes.find(o => o.name.toLowerCase() === "no")?.price;
+    if (yes && no) {
+      results.push({
+        key: "btts", line: null, name: "Both teams to score",
+        outcomes: [{ key: "yes", name: "Yes", price: priced(yes) }, { key: "no", name: "No", price: priced(no) }],
+      });
+    }
+  }
+
+  const drawNoBet = bookmaker.markets.find(m => m.key === "draw_no_bet");
+  if (drawNoBet) {
+    const home = drawNoBet.outcomes.find(o => o.name === source.home_team)?.price;
+    const away = drawNoBet.outcomes.find(o => o.name === source.away_team)?.price;
+    if (home && away) {
+      results.push({
+        key: "draw-no-bet", line: null, name: "Draw no bet",
+        outcomes: [{ key: "home", name: source.home_team, price: priced(home) }, { key: "away", name: source.away_team, price: priced(away) }],
+      });
+    }
+  }
+
+  const doubleChance = bookmaker.markets.find(m => m.key === "double_chance");
+  if (doubleChance) {
+    const outcomeFor = (label: "1X" | "12" | "X2") => doubleChance.outcomes.find(o => normalizeDoubleChance(o.name, source) === label)?.price;
+    const homeOrDraw = outcomeFor("1X");
+    const homeOrAway = outcomeFor("12");
+    const drawOrAway = outcomeFor("X2");
+    if (homeOrDraw && homeOrAway && drawOrAway) {
+      results.push({
+        key: "double-chance", line: null, name: "Double chance",
+        outcomes: [
+          { key: "home-draw", name: `${source.home_team} or Draw`, price: priced(homeOrDraw) },
+          { key: "home-away", name: `${source.home_team} or ${source.away_team}`, price: priced(homeOrAway) },
+          { key: "draw-away", name: `Draw or ${source.away_team}`, price: priced(drawOrAway) },
+        ],
+      });
+    }
+  }
+
+  const totals = bookmaker.markets.find(m => m.key === "totals");
+  if (totals) {
+    const byPoint = new Map<number, OddsApiOutcome[]>();
+    for (const outcome of totals.outcomes) {
+      if (outcome.point == null) continue;
+      const list = byPoint.get(outcome.point) ?? [];
+      list.push(outcome);
+      byPoint.set(outcome.point, list);
+    }
+    for (const [point, outcomes] of byPoint) {
+      const over = outcomes.find(o => o.name.toLowerCase() === "over")?.price;
+      const under = outcomes.find(o => o.name.toLowerCase() === "under")?.price;
+      if (over && under) {
+        results.push({
+          key: "total-goals", line: point, name: `Over/Under ${point}`,
+          outcomes: [{ key: "over", name: `Over ${point}`, price: priced(over) }, { key: "under", name: `Under ${point}`, price: priced(under) }],
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+function normalizeDoubleChance(name: string, source: OddsApiEvent): "1X" | "12" | "X2" | null {
+  const lower = name.toLowerCase();
+  const home = source.home_team.toLowerCase();
+  const away = source.away_team.toLowerCase();
+  if (lower.includes(home) && lower.includes(away)) return "12";
+  if (lower.includes(home)) return "1X";
+  if (lower.includes(away)) return "X2";
+  if (lower === "1x") return "1X";
+  if (lower === "12") return "12";
+  if (lower === "x2") return "X2";
+  return null;
 }
