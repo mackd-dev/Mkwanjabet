@@ -11,6 +11,52 @@ export class BettingService {
 
   private bookingCode() { return `MKB-${randomBytes(2).toString("hex").toUpperCase()}`; }
   private ticketCode() { return `MB-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString("hex").toUpperCase()}`; }
+  private betStatusLabel(status: BetStatus) {
+    if (["PLACED", "ACCEPTED", "LIVE"].includes(status)) return "Open";
+    if (status === "WON") return "Won";
+    if (status === "LOST") return "Lost";
+    if (status === "VOID" || status === "REFUNDED") return "Void";
+    if (status === "CASHED_OUT") return "Cashed out";
+    return "Open";
+  }
+  private selectionStatusLabel(status: string) {
+    return status.charAt(0) + status.slice(1).toLowerCase().replace("_", " ");
+  }
+  async myBets(userId: string) {
+    const bets = await this.db.bet.findMany({
+      where: { userId },
+      orderBy: { placedAt: "desc" },
+      take: 50,
+      include: { selections: { orderBy: { id: "asc" } } },
+    });
+    return bets.map(bet => ({
+      id: bet.ticketCode,
+      betId: bet.id,
+      bookingCode: bet.bookingCode,
+      type: bet.selections.length > 1 ? "Accumulator" : "Single",
+      status: this.betStatusLabel(bet.status),
+      rawStatus: bet.status,
+      stake: bet.stakeTzs,
+      odds: Number(bet.totalOdds),
+      returnAmount: bet.status === BetStatus.WON ? bet.payoutTzs : bet.status === BetStatus.VOID || bet.status === BetStatus.REFUNDED ? bet.stakeTzs : bet.potentialReturnTzs,
+      cashOut: bet.cashOutOfferTzs,
+      date: bet.placedAt.toISOString(),
+      settledAt: bet.settledAt?.toISOString(),
+      acceptedAt: bet.acceptedAt?.toISOString(),
+      selections: bet.selections.map(selection => ({
+        eventId: selection.externalEventId,
+        marketId: selection.marketId,
+        outcomeId: selection.outcomeId,
+        sport: selection.sport,
+        league: selection.league,
+        match: selection.matchName,
+        market: selection.marketName,
+        pick: selection.selection,
+        odd: Number(selection.odds),
+        state: this.selectionStatusLabel(selection.status),
+      })),
+    }));
+  }
   private totalOdds(selections: BetSelectionDto[]) { return selections.reduce((n, x) => n * Number(x.odds), 1); }
   private async canonicalSelections(input: BetSelectionDto[], acceptOddsChanges = false) {
     const selections: BetSelectionDto[] = [];

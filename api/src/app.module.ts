@@ -13,7 +13,6 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { SubscriptionsModule } from "./modules/subscriptions/subscriptions.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { SportsbookModule } from "./modules/sportsbook/sportsbook.module";
-import { BookingCodesModule } from "./modules/booking-codes/booking-codes.module";
 import { WalletModule } from "./modules/wallet/wallet.module";
 import { BettingModule } from "./modules/betting/betting.module";
 import { BetsModule } from "./modules/bets/bets.module";
@@ -29,7 +28,7 @@ import { CasinoModule } from "./modules/casino/casino.module";
   ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]), PrismaModule,
   HealthModule, AuthModule, PicksModule, ResultsModule, PlansModule, UsersModule,
   SavedPicksModule, NotificationsModule, SubscriptionsModule, PaymentsModule,
-  SportsbookModule, OddsFeedModule, CasinoModule, BookingCodesModule, OperatorControlsModule,
+  SportsbookModule, OddsFeedModule, CasinoModule, OperatorControlsModule,
   WalletModule, BettingModule, BetsModule, KycModule, ResponsibleGamingModule, AdminModule,
 ]})
 export class AppModule {}

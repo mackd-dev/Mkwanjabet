@@ -14,4 +14,5 @@ export class BettingController {
   @UseGuards(JwtAuthGuard) @Post("booking/:code/place") placeBooking(@CurrentUser() user:{id:string}, @Param("code") code:string, @Body() dto:PlaceBookingDto) { return this.betting.placeBooking(user.id,code,dto.stakeTzs,dto.acceptOddsChanges); }
   @UseGuards(JwtAuthGuard) @Post("validate") validate(@CurrentUser() user:{id:string}, @Body() dto:PlaceBetDto) { return this.betting.validate(user.id,dto); }
   @UseGuards(JwtAuthGuard) @Post("place") place(@CurrentUser() user:{id:string}, @Body() dto:PlaceBetDto) { return this.betting.place(user.id,dto); }
+  @UseGuards(JwtAuthGuard) @Get("my-bets") myBets(@CurrentUser() user:{id:string}) { return this.betting.myBets(user.id); }
 }
