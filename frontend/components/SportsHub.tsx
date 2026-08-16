@@ -97,7 +97,10 @@ const promoBanners=[
 ];
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Africa/Dar_es_Salaam" }).format(new Date(value));
+}
+function formatMatchDate(value: string) {
+  return new Intl.DateTimeFormat("en-TZ", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Dar_es_Salaam" }).format(new Date(value));
 }
 
 function toEvent(event: ApiEvent): Event {
@@ -467,9 +470,9 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
           {groupedVisible.map(group=><div className="league-group" key={group.key}>
             <div className="league-group-head">{group.leagueLogo?<img src={group.leagueLogo} alt="" loading="lazy"/>:<i className="league-group-flag">{group.country.slice(0,2).toUpperCase()}</i>}<span><b>{group.country}</b><small>{group.league}</small></span><em>{group.events.length}</em></div>
             {group.events.map(e=><article className="event-card" key={e.id}>
-              <div className="event-meta"><button aria-label={`Save ${e.home} vs ${e.away}`}>☆</button><time className={e.live?"is-live":""}>{e.live?<><i/> LIVE {e.minute}</>:formatTime(e.time)}</time></div>
+              <div className="event-meta"><button aria-label={`Save ${e.home} vs ${e.away}`}>☆</button><time dateTime={e.time} className={e.live?"is-live":""}><span>{formatMatchDate(e.time)}</span><b>{e.live?<><i/> LIVE {e.minute}</>:formatTime(e.time)}</b></time></div>
               <div className="event-body"><Link className="teams api-football-teams" href={`/sports/match/${e.id}`}><div><TeamLogo src={e.homeLogo} label={e.home}/><strong>{e.home}</strong><span>{e.live&&e.score?.split(" - ")[0]}</span></div><div><TeamLogo src={e.awayLogo} label={e.away}/><strong>{e.away}</strong><span>{e.live&&e.score?.split(" - ")[1]}</span></div><small>{e.live?"Live match result":"Match result"} · {e.more?`${e.more} extra markets`:"team visuals ready"}</small></Link><div className="odds-grid">{e.markets.length?e.markets.map(m=>{const id=`${e.id}-${m.outcomeId}`;return <button key={m.outcomeId} className={slip.some(s=>s.id===id)?"selected":""} onClick={()=>toggle(e,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>}):<div className="odds-unavailable"><b>Odds pending</b><span>Fixture loaded from API-Football free feed</span></div>}<button className="more" aria-label={`Open more markets for ${e.home} vs ${e.away}`}>+{e.more}</button></div></div>
-              <div className="event-footer"><button>▥ Stats</button><button>◉ Tracker</button><span>{e.live?e.score:"Starts "+formatTime(e.time)}</span></div>
+              <div className="event-footer"><button>▥ Stats</button><button>◉ Tracker</button><span>{e.live?`${formatMatchDate(e.time)} · ${e.score??"Live"}`:`${formatMatchDate(e.time)} · Starts ${formatTime(e.time)}`}</span></div>
             </article>)}
           </div>)}
         </div>
