@@ -17,7 +17,9 @@ type FeedStatus = { configured: boolean; running: boolean; lastStartedAt: string
 export class OddsFeedService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OddsFeedService.name);
   private timer?: NodeJS.Timeout;
+  private liveTimer?: NodeJS.Timeout;
   private syncing?: Promise<FeedStatus>;
+  private liveSyncing?: Promise<void>;
   private state: FeedStatus = { configured: false, running: false, lastStartedAt: null, lastCompletedAt: null, lastError: null, lastImported: 0, requestsRemaining: null, requestsUsed: null };
 
   constructor(private readonly db: PrismaService, private readonly config: ConfigService) {
@@ -29,10 +31,38 @@ export class OddsFeedService implements OnModuleInit, OnModuleDestroy {
     const minutes = Math.max(15, Number(this.config.get("API_FOOTBALL_REFRESH_MINUTES") ?? this.config.get("ODDS_API_REFRESH_MINUTES") ?? 60));
     this.timer = setInterval(() => void this.sync().catch(error => this.logger.error(error)), minutes * 60_000);
     setTimeout(() => void this.sync().catch(error => this.logger.error(error)), 5_000);
+
+    const liveMinutes = Math.max(1, Number(this.config.get("API_FOOTBALL_LIVE_REFRESH_MINUTES") ?? 2));
+    this.liveTimer = setInterval(() => void this.syncLive().catch(error => this.logger.error(error)), liveMinutes * 60_000);
+    setTimeout(() => void this.syncLive().catch(error => this.logger.error(error)), 10_000);
   }
 
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
+    if (this.liveTimer) clearInterval(this.liveTimer);
+  }
+
+  private async syncLive() {
+    if (this.liveSyncing) return this.liveSyncing;
+    this.liveSyncing = (async () => {
+      try {
+        const response = await fetch(this.liveUrl(), { headers: { "x-apisports-key": this.apiKey() }, signal: AbortSignal.timeout(15_000) });
+        this.readQuota(response.headers);
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => null) as ApiFootballResponse | null;
+        if (!payload || !Array.isArray(payload.response)) return;
+        for (const fixture of payload.response) await this.importFixture(fixture);
+      } catch (error) {
+        this.logger.warn(`Live fixtures refresh failed: ${error instanceof Error ? error.message : error}`);
+      }
+    })();
+    try { await this.liveSyncing; } finally { this.liveSyncing = undefined; }
+  }
+
+  private liveUrl() {
+    const baseUrl = this.config.get<string>("API_FOOTBALL_BASE_URL") ?? "https://v3.football.api-sports.io";
+    const timezone = this.config.get<string>("API_FOOTBALL_TIMEZONE") ?? "Africa/Dar_es_Salaam";
+    return `${baseUrl.replace(/\/$/, "")}/fixtures?live=all&timezone=${encodeURIComponent(timezone)}`;
   }
 
   status() {

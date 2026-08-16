@@ -129,6 +129,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [expandedSport,setExpandedSport]=useState<string|null>("Football");
   const [query,setQuery]=useState("" );
   const [timeFilter,setTimeFilter]=useState<"all"|"today"|"tomorrow"|"soon">("all");
+  const [leagueFilter,setLeagueFilter]=useState<{league:string;country:string}|null>(null);
   const [events,setEvents]=useState<Event[]>([]);
   const [eventsNotice,setEventsNotice]=useState("");
   const [eventsLoading,setEventsLoading]=useState(true);
@@ -209,14 +210,24 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     void loadBookingCode(code);
   },[sessionLoading,user]);
   const sportOptions=useMemo(()=>Array.from(new Set(events.map(event=>event.sport))).map(name=>({name,icon:sportIcons[name]??"•",count:events.filter(event=>event.sport===name).length})),[events]);
-  const competitionsBySport=useMemo(()=>Object.fromEntries(sportOptions.map(option=>[option.name,Array.from(new Set(events.filter(event=>event.sport===option.name).map(event=>event.league))).sort((a,b)=>leaguePriority(a)-leaguePriority(b)||a.localeCompare(b)).slice(0,8)])),[events,sportOptions]);
+  const competitionsBySport=useMemo(()=>Object.fromEntries(sportOptions.map(option=>{
+    const seen=new Map<string,{league:string;country:string}>();
+    for(const event of events){
+      if(event.sport!==option.name)continue;
+      const key=`${event.country}|${event.league}`;
+      if(!seen.has(key))seen.set(key,{league:event.league,country:event.country});
+    }
+    const list=Array.from(seen.values()).sort((a,b)=>leaguePriority(a.league)-leaguePriority(b.league)||a.league.localeCompare(b.league)).slice(0,8);
+    return [option.name,list];
+  })),[events,sportOptions]);
   const visible=events.filter(e=>{
     const tabMatch=tab==="live" ? e.live : !e.live;
     const sportMatch=e.sport===sport;
     const q=`${e.home} ${e.away} ${e.league} ${e.country}`.toLowerCase();
     const now=new Date();const eventDate=new Date(e.time);const startOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate());const startOfTomorrow=new Date(startOfToday);startOfTomorrow.setDate(startOfTomorrow.getDate()+1);const endOfTomorrow=new Date(startOfTomorrow);endOfTomorrow.setDate(endOfTomorrow.getDate()+1);
     const timeMatch=timeFilter==="all"||e.live||(timeFilter==="today"&&eventDate>=startOfToday&&eventDate<startOfTomorrow)||(timeFilter==="tomorrow"&&eventDate>=startOfTomorrow&&eventDate<endOfTomorrow)||(timeFilter==="soon"&&eventDate>=now&&eventDate.getTime()-now.getTime()<=3*60*60*1000);
-    return tabMatch && sportMatch && timeMatch && q.includes(query.toLowerCase());
+    const leagueMatch=!leagueFilter||(e.league===leagueFilter.league&&e.country===leagueFilter.country);
+    return tabMatch && sportMatch && timeMatch && leagueMatch && q.includes(query.toLowerCase());
   });
   const groupedVisible=useMemo(()=>{
     const groups:{key:string;country:string;league:string;leagueLogo?:string;events:Event[]}[]=[];
@@ -399,7 +410,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     <section className="sports-layout">
       <aside className="sports-left">
         <h3>Sports</h3>
-        {sportOptions.map(({name,icon,count})=><div className="sports-left-group" key={name}><button onClick={()=>{setSport(name);setExpandedSport(current=>current===name?null:name)}} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>{expandedSport===name&&<div className="sports-left-leagues">{(competitionsBySport[name]??[]).length?(competitionsBySport[name]??[]).map(league=><button key={league} onClick={()=>setQuery(league)}><span>★</span>{league}</button>):<small className="sports-empty-competitions">No competitions available</small>}</div>}</div>)}
+        {sportOptions.map(({name,icon,count})=><div className="sports-left-group" key={name}><button onClick={()=>{setSport(name);setExpandedSport(current=>current===name?null:name)}} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>{expandedSport===name&&<div className="sports-left-leagues">{(competitionsBySport[name]??[]).length?(competitionsBySport[name]??[]).map(c=><button key={`${c.country}-${c.league}`} className={leagueFilter?.league===c.league&&leagueFilter?.country===c.country?"active":""} onClick={()=>setLeagueFilter(current=>current?.league===c.league&&current?.country===c.country?null:c)}><span>★</span><b>{c.league}</b><small>{c.country}</small></button>):<small className="sports-empty-competitions">No competitions available</small>}</div>}</div>)}
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">

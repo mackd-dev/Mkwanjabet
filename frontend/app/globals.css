@@ -334,3 +334,8 @@ img,svg{max-width:100%}
 .sports-content .event-meta time:not(.is-live){color:#103923}
 .promo-cards b{color:#0b2415}
 .promo-cards small{color:#5c6b62}
+.sports-left-leagues button{display:flex;align-items:center;gap:6px;text-align:left}
+.sports-left-leagues button b{font-weight:750;font-size:12px}
+.sports-left-leagues button small{color:#8ea297;font-size:10px}
+.sports-left-leagues button.active{background:#006b2f!important;color:#fff!important;box-shadow:inset 3px 0 0 #ffd700}
+.sports-left-leagues button.active b,.sports-left-leagues button.active small{color:#fff!important}
