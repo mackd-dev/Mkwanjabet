@@ -82,7 +82,9 @@ function formatTime(value: string) {
 
 function toEvent(event: ApiEvent): Event {
   const matchWinner = event.markets.find(m => m.key === "match-winner") ?? event.markets[0];
-  const markets = (matchWinner?.outcomes ?? []).slice(0, 3).map(outcome => ({
+  const outcomeOrder: Record<string, number> = { home: 0, draw: 1, away: 2 };
+  const orderedOutcomes = [...(matchWinner?.outcomes ?? [])].sort((a, b) => (outcomeOrder[a.key] ?? 99) - (outcomeOrder[b.key] ?? 99));
+  const markets = orderedOutcomes.slice(0, 3).map(outcome => ({
     id: matchWinner.id,
     outcomeId: outcome.id,
     label: outcome.key === "home" ? "1" : outcome.key === "draw" ? "X" : outcome.key === "away" ? "2" : outcome.name,
