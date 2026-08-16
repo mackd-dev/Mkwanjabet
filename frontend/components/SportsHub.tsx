@@ -53,6 +53,17 @@ function apiMessage(error: unknown) {
   return "Request could not be completed. Please try again.";
 }
 const sportIcons: Record<string,string> = { Football:"⚽", Basketball:"🏀", Tennis:"🎾", Baseball:"◆", Cricket:"●", Volleyball:"🏐", "Ice Hockey":"◉", "Table Tennis":"◌" };
+const POPULAR_COUNTRIES = [
+  {value:"England",label:"England"}, {value:"Spain",label:"Spain"}, {value:"Italy",label:"Italy"},
+  {value:"Germany",label:"Germany"}, {value:"France",label:"France"}, {value:"Portugal",label:"Portugal"},
+  {value:"World",label:"European cups"}, {value:"Netherlands",label:"Netherlands"},
+  {value:"Belgium",label:"Belgium"}, {value:"Turkey",label:"Turkiye"}, {value:"Brazil",label:"Brazil"},
+  {value:"Argentina",label:"Argentina"}, {value:"USA",label:"United States"},
+];
+function countryPriority(country:string) {
+  const index=POPULAR_COUNTRIES.findIndex(item=>item.value.toLowerCase()===country.trim().toLowerCase());
+  return index===-1?999:index;
+}
 const POPULAR_LEAGUES = [
   "UEFA Champions League", "Premier League", "La Liga", "Serie A", "Bundesliga", "Ligue 1",
   "UEFA Europa League", "Primeira Liga", "Eredivisie", "Jupiler Pro League", "Super Lig",
@@ -129,6 +140,11 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [expandedSport,setExpandedSport]=useState<string|null>("Football");
   const [query,setQuery]=useState("" );
   const [timeFilter,setTimeFilter]=useState<"all"|"today"|"tomorrow"|"soon">("all");
+  const [countryFilter,setCountryFilter]=useState<string|null>(null);
+  const [expandedCountry,setExpandedCountry]=useState<string|null>(null);
+  const [topCompetitionsOpen,setTopCompetitionsOpen]=useState(true);
+  const [topGamesOpen,setTopGamesOpen]=useState(true);
+  const [topGameIndex,setTopGameIndex]=useState(0);
   const [leagueFilter,setLeagueFilter]=useState<{league:string;country:string}|null>(null);
   const [events,setEvents]=useState<Event[]>([]);
   const [eventsNotice,setEventsNotice]=useState("");
@@ -210,24 +226,42 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     void loadBookingCode(code);
   },[sessionLoading,user]);
   const sportOptions=useMemo(()=>Array.from(new Set(events.map(event=>event.sport))).map(name=>({name,icon:sportIcons[name]??"•",count:events.filter(event=>event.sport===name).length})),[events]);
-  const competitionsBySport=useMemo(()=>Object.fromEntries(sportOptions.map(option=>{
-    const seen=new Map<string,{league:string;country:string}>();
+  const countriesBySport=useMemo(()=>Object.fromEntries(sportOptions.map(option=>{
+    const counts=new Map<string,number>();
     for(const event of events){
-      if(event.sport!==option.name)continue;
-      const key=`${event.country}|${event.league}`;
-      if(!seen.has(key))seen.set(key,{league:event.league,country:event.country});
+      if(event.sport!==option.name||countryPriority(event.country)===999)continue;
+      counts.set(event.country,(counts.get(event.country)??0)+1);
     }
-    const list=Array.from(seen.values()).sort((a,b)=>leaguePriority(a.league)-leaguePriority(b.league)||a.league.localeCompare(b.league)).slice(0,8);
+    const list=Array.from(counts,([country,count])=>{
+      const configured=POPULAR_COUNTRIES.find(item=>item.value.toLowerCase()===country.toLowerCase());
+      return {country,label:configured?.label??country,count};
+    }).sort((a,b)=>countryPriority(a.country)-countryPriority(b.country));
     return [option.name,list];
   })),[events,sportOptions]);
+  const competitionsBySport=useMemo(()=>Object.fromEntries(sportOptions.map(option=>{
+    const seen=new Map<string,{league:string;country:string;count:number;leagueLogo?:string}>();
+    for(const event of events){
+      if(event.sport!==option.name||countryPriority(event.country)===999)continue;
+      const key=`${event.country}|${event.league}`;
+      const current=seen.get(key);
+      if(current)current.count++;
+      else seen.set(key,{league:event.league,country:event.country,count:1,leagueLogo:event.leagueLogo});
+    }
+    const list=Array.from(seen.values()).sort((a,b)=>countryPriority(a.country)-countryPriority(b.country)||leaguePriority(a.league)-leaguePriority(b.league)||a.league.localeCompare(b.league));
+    return [option.name,list];
+  })),[events,sportOptions]);
+  const topCompetitions=(competitionsBySport.Football??[]).filter(item=>leaguePriority(item.league)<999).sort((a,b)=>leaguePriority(a.league)-leaguePriority(b.league)).slice(0,6);
+  const topGames=events.filter(event=>event.sport==="Football"&&event.markets.length).sort((a,b)=>Number(b.live)-Number(a.live)||new Date(a.time).getTime()-new Date(b.time).getTime()).slice(0,5);
+  const topGame=topGames[topGameIndex%Math.max(1,topGames.length)];
   const visible=events.filter(e=>{
     const tabMatch=tab==="live" ? e.live : !e.live;
     const sportMatch=e.sport===sport;
     const q=`${e.home} ${e.away} ${e.league} ${e.country}`.toLowerCase();
     const now=new Date();const eventDate=new Date(e.time);const startOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate());const startOfTomorrow=new Date(startOfToday);startOfTomorrow.setDate(startOfTomorrow.getDate()+1);const endOfTomorrow=new Date(startOfTomorrow);endOfTomorrow.setDate(endOfTomorrow.getDate()+1);
     const timeMatch=timeFilter==="all"||e.live||(timeFilter==="today"&&eventDate>=startOfToday&&eventDate<startOfTomorrow)||(timeFilter==="tomorrow"&&eventDate>=startOfTomorrow&&eventDate<endOfTomorrow)||(timeFilter==="soon"&&eventDate>=now&&eventDate.getTime()-now.getTime()<=3*60*60*1000);
+    const countryMatch=!countryFilter||e.country===countryFilter;
     const leagueMatch=!leagueFilter||(e.league===leagueFilter.league&&e.country===leagueFilter.country);
-    return tabMatch && sportMatch && timeMatch && leagueMatch && q.includes(query.toLowerCase());
+    return tabMatch && sportMatch && countryMatch && timeMatch && leagueMatch && q.includes(query.toLowerCase());
   });
   const groupedVisible=useMemo(()=>{
     const groups:{key:string;country:string;league:string;leagueLogo?:string;events:Event[]}[]=[];
@@ -410,7 +444,15 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     <section className="sports-layout">
       <aside className="sports-left">
         <h3>Sports</h3>
-        {sportOptions.map(({name,icon,count})=><div className="sports-left-group" key={name}><button onClick={()=>{setSport(name);setExpandedSport(current=>current===name?null:name)}} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>{expandedSport===name&&<div className="sports-left-leagues">{(competitionsBySport[name]??[]).length?(competitionsBySport[name]??[]).map(c=><button key={`${c.country}-${c.league}`} className={leagueFilter?.league===c.league&&leagueFilter?.country===c.country?"active":""} onClick={()=>setLeagueFilter(current=>current?.league===c.league&&current?.country===c.country?null:c)}><span>★</span><b>{c.league}</b><small>{c.country}</small></button>):<small className="sports-empty-competitions">No competitions available</small>}</div>}</div>)}
+        <section className="sports-sidebar-feature">
+          <button className="sidebar-section-title" onClick={()=>setTopCompetitionsOpen(value=>!value)}><span>🏆</span><b>Top competitions</b><i>{topCompetitionsOpen?"−":"+"}</i></button>
+          {topCompetitionsOpen&&<div className="top-competition-list">{topCompetitions.length?topCompetitions.map(item=><button key={`top-${item.country}-${item.league}`} className={leagueFilter?.league===item.league&&leagueFilter?.country===item.country?"active":""} onClick={()=>{setSport("Football");setCountryFilter(item.country);setExpandedCountry(item.country);setLeagueFilter({league:item.league,country:item.country})}}>{item.leagueLogo?<img src={item.leagueLogo} alt="" loading="lazy"/>:<span>⚽</span>}<b>{item.league}</b><small>{item.count}</small></button>):<small className="sports-empty-competitions">Waiting for top competitions</small>}</div>}
+        </section>
+        <section className="sports-sidebar-feature">
+          <button className="sidebar-section-title" onClick={()=>setTopGamesOpen(value=>!value)}><span>◉</span><b>Top Games</b><i>{topGames.length?`${topGameIndex+1}/${topGames.length}`:topGamesOpen?"−":"+"}</i></button>
+          {topGamesOpen&&topGame&&<article className="top-game-card"><header>{topGame.leagueLogo?<img src={topGame.leagueLogo} alt="" loading="lazy"/>:<span>⚽</span>}<b>{topGame.league}</b>{topGame.live&&<em>LIVE</em>}</header><Link href={`/sports/match/${topGame.id}`}><div><TeamLogo src={topGame.homeLogo} label={topGame.home}/><span>{topGame.home}</span><strong>{topGame.live?topGame.score?.split(" - ")[0]??"-":""}</strong></div><div><TeamLogo src={topGame.awayLogo} label={topGame.away}/><span>{topGame.away}</span><strong>{topGame.live?topGame.score?.split(" - ")[1]??"-":""}</strong></div><small>{topGame.live?`Live ${topGame.minute??""}`:shortDate(topGame.time)}</small></Link><div className="top-game-odds">{topGame.markets.map(m=><button key={m.outcomeId} onClick={()=>toggle(topGame,m)}><span>{m.label}</span><b>{m.odds.toFixed(2)}</b></button>)}</div><footer><button disabled={topGameIndex===0} onClick={()=>setTopGameIndex(index=>Math.max(0,index-1))}>‹</button><span>Real feed</span><button disabled={topGameIndex>=topGames.length-1} onClick={()=>setTopGameIndex(index=>Math.min(topGames.length-1,index+1))}>›</button></footer></article>}
+        </section>
+        {sportOptions.map(({name,icon,count})=><div className="sports-left-group" key={name}><button onClick={()=>{setSport(name);setExpandedSport(current=>current===name?null:name);setCountryFilter(null);setExpandedCountry(null);setLeagueFilter(null)}} className={sport===name?"active":""}><span>{icon}</span>{name}<small>{count}</small></button>{expandedSport===name&&<div className="sports-country-list">{(countriesBySport[name]??[]).length?(countriesBySport[name]??[]).map(item=><div className="sports-country-group" key={item.country}><button className={countryFilter===item.country?"active":""} onClick={()=>{const open=expandedCountry===item.country?null:item.country;setSport(name);setExpandedCountry(open);setCountryFilter(open);setLeagueFilter(null)}}><span>{item.country==="World"?"EU":item.country.slice(0,2).toUpperCase()}</span><b>{item.label}</b><small>{item.count}</small><i>{expandedCountry===item.country?"⌃":"⌄"}</i></button>{expandedCountry===item.country&&<div className="country-league-list">{(competitionsBySport[name]??[]).filter(c=>c.country===item.country).map(c=><button key={`${c.country}-${c.league}`} className={leagueFilter?.league===c.league&&leagueFilter?.country===c.country?"active":""} onClick={()=>setLeagueFilter(current=>current?.league===c.league&&current?.country===c.country?null:{league:c.league,country:c.country})}>{c.leagueLogo?<img src={c.leagueLogo} alt="" loading="lazy"/>:<span>⚽</span>}<b>{c.league}</b><small>{c.count}</small></button>)}</div>}</div>):<small className="sports-empty-competitions">No popular countries in the live feed</small>}</div>}</div>)}
         <div className="sidebar-help"><b>Need help?</b><p>Visit support or learn about responsible play.</p><Link href="/contact">Support centre</Link></div>
       </aside>
       <section className="sports-content">
