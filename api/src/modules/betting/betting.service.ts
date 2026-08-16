@@ -9,7 +9,7 @@ import { OperatorControlsService } from "../operator-controls/operator-controls.
 export class BettingService {
   constructor(private readonly db: PrismaService, private readonly controls: OperatorControlsService) {}
 
-  private bookingCode() { return `MKB-${randomBytes(3).toString("hex").toUpperCase()}`; }
+  private bookingCode() { return `MKB-${randomBytes(2).toString("hex").toUpperCase()}`; }
   private ticketCode() { return `MB-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString("hex").toUpperCase()}`; }
   private totalOdds(selections: BetSelectionDto[]) { return selections.reduce((n, x) => n * Number(x.odds), 1); }
   private async canonicalSelections(input: BetSelectionDto[], acceptOddsChanges = false) {
