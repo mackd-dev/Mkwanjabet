@@ -53,6 +53,15 @@ function apiMessage(error: unknown) {
   return "Request could not be completed. Please try again.";
 }
 const sportIcons: Record<string,string> = { Football:"⚽", Basketball:"🏀", Tennis:"🎾", Baseball:"◆", Cricket:"●", Volleyball:"🏐", "Ice Hockey":"◉", "Table Tennis":"◌" };
+const POPULAR_LEAGUES = [
+  "UEFA Champions League", "Premier League", "La Liga", "Serie A", "Bundesliga", "Ligue 1",
+  "UEFA Europa League", "Primeira Liga", "Eredivisie", "Jupiler Pro League", "Super Lig",
+  "Championship", "Brasileirao Serie A", "MLS",
+];
+function leaguePriority(league: string) {
+  const index = POPULAR_LEAGUES.findIndex(name => name.toLowerCase() === league.trim().toLowerCase());
+  return index === -1 ? 999 : index;
+}
 const depositMethods=[{name:"M-Pesa",code:"MP",provider:"MPESA",hint:"Vodacom"},{name:"Mixx by Yas",code:"MY",provider:"MIXX_BY_YAS",hint:"Yas"},{name:"Airtel Money",code:"AM",provider:"AIRTEL_MONEY",hint:"Airtel"},{name:"HaloPesa",code:"HP",provider:"HALOPESA",hint:"Halotel"}];
 const normalizeTzPhone=(raw:string)=>{
  const digits=raw.replace(/\D/g,"");
@@ -200,7 +209,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     void loadBookingCode(code);
   },[sessionLoading,user]);
   const sportOptions=useMemo(()=>Array.from(new Set(events.map(event=>event.sport))).map(name=>({name,icon:sportIcons[name]??"•",count:events.filter(event=>event.sport===name).length})),[events]);
-  const competitionsBySport=useMemo(()=>Object.fromEntries(sportOptions.map(option=>[option.name,Array.from(new Set(events.filter(event=>event.sport===option.name).map(event=>event.league))).slice(0,6)])),[events,sportOptions]);
+  const competitionsBySport=useMemo(()=>Object.fromEntries(sportOptions.map(option=>[option.name,Array.from(new Set(events.filter(event=>event.sport===option.name).map(event=>event.league))).sort((a,b)=>leaguePriority(a)-leaguePriority(b)||a.localeCompare(b)).slice(0,8)])),[events,sportOptions]);
   const visible=events.filter(e=>{
     const tabMatch=tab==="live" ? e.live : !e.live;
     const sportMatch=e.sport===sport;
