@@ -16,7 +16,7 @@ type FeedStatus = {
   lastError: string | null; lastMatched: number; lastSkipped: number; requestsRemaining: number | null; requestsUsed: number | null;
 };
 type DbOutcome = { key: string; name: string; price: number };
-type DbMarket = { key: string; line: number | null; name: string; outcomes: DbOutcome[] };
+type DbMarket = { key: string; line: number | null; name: string; outcomes: DbOutcome[]; bookmakerKey?: string };
 
 const DEFAULT_SPORT_KEYS = [
   "soccer_epl", "soccer_uefa_champs_league", "soccer_spain_la_liga", "soccer_italy_serie_a",
@@ -24,6 +24,7 @@ const DEFAULT_SPORT_KEYS = [
 ].join(",");
 
 const DEFAULT_MARKETS = "h2h,totals";
+const DEFAULT_EXTRA_MARKETS = "btts,draw_no_bet,double_chance";
 
 @Injectable()
 export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
@@ -112,8 +113,11 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
     if (!bookmaker) return false;
     const marginFactor = 1 - Math.max(0, Math.min(0.25, Number(this.config.get("ODDS_API_MARGIN_PCT") ?? 0.06)));
 
-    const dbMarkets = buildDbMarkets(source, bookmaker, marginFactor);
+    let dbMarkets = buildDbMarkets(source, bookmaker, marginFactor);
     if (!dbMarkets.length) return false;
+
+    const extraBookmaker = await this.fetchExtraMarkets(source);
+    if (extraBookmaker) dbMarkets = dbMarkets.concat(buildDbMarkets(source, extraBookmaker, marginFactor));
 
     await this.db.$transaction(async tx => {
       for (const dbMarket of dbMarkets) {
@@ -130,7 +134,7 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
             update: { name: item.name, status: OutcomeStatus.ACTIVE, currentOdds: item.price, sortOrder },
           });
           if (Number(existing?.currentOdds ?? 0) !== item.price) {
-            await tx.odds.create({ data: { outcomeId: outcome.id, price: item.price, previousPrice: existing?.currentOdds, source: `odds-api:${bookmaker.key}` } });
+            await tx.odds.create({ data: { outcomeId: outcome.id, price: item.price, previousPrice: existing?.currentOdds, source: `odds-api:${dbMarket.bookmakerKey ?? bookmaker.key}` } });
           }
         }
       }
@@ -148,6 +152,25 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
     const markets = this.config.get<string>("ODDS_API_MARKETS") ?? DEFAULT_MARKETS;
     const params = new URLSearchParams({ apiKey: this.apiKey(), regions, markets, oddsFormat: "decimal" });
     return `${baseUrl.replace(/\/$/, "")}/v4/sports/${sportKey}/odds/?${params}`;
+  }
+
+  private async fetchExtraMarkets(source: OddsApiEvent): Promise<OddsApiBookmaker | null> {
+    const extraMarkets = this.config.get<string>("ODDS_API_EXTRA_MARKETS") ?? DEFAULT_EXTRA_MARKETS;
+    if (!extraMarkets) return null;
+    try {
+      const baseUrl = this.config.get<string>("ODDS_API_BASE_URL") ?? "https://api.the-odds-api.com";
+      const regions = this.config.get<string>("ODDS_API_REGIONS") ?? "eu";
+      const params = new URLSearchParams({ apiKey: this.apiKey(), regions, markets: extraMarkets, oddsFormat: "decimal" });
+      const url = `${baseUrl.replace(/\/$/, "")}/v4/sports/${source.sport_key}/events/${source.id}/odds/?${params}`;
+      const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      this.readQuota(response.headers);
+      if (!response.ok) return null;
+      const payload = await response.json().catch(() => null) as OddsApiEvent | null;
+      return payload?.bookmakers?.[0] ?? null;
+    } catch (error) {
+      this.logger.warn(`Extra markets fetch failed for ${source.home_team} vs ${source.away_team}: ${error instanceof Error ? error.message : error}`);
+      return null;
+    }
   }
 
   private apiKey() {
@@ -255,7 +278,7 @@ function buildDbMarkets(source: OddsApiEvent, bookmaker: OddsApiBookmaker, margi
     }
   }
 
-  return results;
+  return results.map(r => ({ ...r, bookmakerKey: bookmaker.key }));
 }
 
 function normalizeDoubleChance(name: string, source: OddsApiEvent): "1X" | "12" | "X2" | null {
