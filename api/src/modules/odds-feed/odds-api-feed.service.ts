@@ -23,7 +23,7 @@ const DEFAULT_SPORT_KEYS = [
   "soccer_germany_bundesliga", "soccer_france_ligue_one", "soccer_uefa_europa_league",
 ].join(",");
 
-const DEFAULT_MARKETS = "h2h,totals,btts,draw_no_bet,double_chance";
+const DEFAULT_MARKETS = "h2h,totals";
 
 @Injectable()
 export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
