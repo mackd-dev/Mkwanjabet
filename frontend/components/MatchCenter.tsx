@@ -113,7 +113,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
     <div className="mc-breadcrumb"><Link href="/sports">Sports</Link><span>›</span><span>{country}</span><span>›</span><span>{competition}</span><span>›</span><b>{home} vs {away}</b></div>
 
     <section className="mc-grid">
-      <aside className="mc-left"><h4>Available markets</h4>{marketGroups.map(group=><a href={`#market-${group.title.replace(/\\s+/g,"-").toLowerCase()}`} key={group.title}>{group.title}</a>)}<div className="mc-side-note"><b>18+</b><span>Bet responsibly. Set limits and never chase losses.</span></div></aside>
+      <aside className="mc-left"><h4>Market categories</h4>{categories.map(item=>{const count=item==="All"?marketGroups.length:marketGroups.filter(group=>group.category===item).length;return <button className={category===item?"active":""} onClick={()=>setCategory(item)} key={item}><span>{item}</span><b>{count}</b></button>})}<div className="mc-side-note"><b>18+</b><span>Bet responsibly. Set limits and never chase losses.</span></div></aside>
 
       <section className="mc-main">
         <article className="mc-scoreboard">
