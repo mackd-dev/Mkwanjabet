@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { EventStatus, MarketStatus, OutcomeStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
-type OddsApiOutcome = { name: string; price: number; point?: number };
+type OddsApiOutcome = { name: string; price: number; point?: number; description?: string };
 type OddsApiMarket = { key: string; outcomes: OddsApiOutcome[] };
 type OddsApiBookmaker = { key: string; title: string; last_update: string; markets: OddsApiMarket[] };
 type OddsApiEvent = {
@@ -22,8 +22,8 @@ const DEFAULT_SPORT_KEYS = [
   "soccer_germany_bundesliga", "soccer_france_ligue_one", "soccer_uefa_europa_league",
 ].join(",");
 
-const DEFAULT_MARKETS = "h2h,totals";
-const DEFAULT_EXTRA_MARKETS = "btts,draw_no_bet,double_chance";
+const DEFAULT_MARKETS = "h2h,totals,spreads";
+const DEFAULT_EXTRA_MARKETS = "btts,draw_no_bet,double_chance,h2h_h1,totals_h1,btts_h1,double_chance_h1,correct_score,correct_score_h1,halftime_fulltime,to_qualify,alternate_totals,team_totals,alternate_team_totals,corners_1x2,alternate_totals_corners,alternate_spreads_corners,alternate_totals_cards,alternate_spreads_cards";
 
 export function slug(value: string) {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -377,7 +377,43 @@ function buildDbMarkets(source: OddsApiEvent, bookmaker: OddsApiBookmaker, margi
     }
   }
 
-  return results.map(r => ({ ...r, bookmakerKey: bookmaker.key }));
+  const knownKeys = new Set(["h2h", "btts", "draw_no_bet", "double_chance", "totals"]);
+  const labels: Record<string, string> = {
+    spreads: "Match handicap", h2h_h1: "First half result", totals_h1: "First half total goals", btts_h1: "Both teams to score - first half",
+    double_chance_h1: "Double chance - first half", correct_score: "Correct score", correct_score_h1: "Correct score - first half",
+    halftime_fulltime: "Half-time / Full-time", to_qualify: "To qualify", alternate_totals: "Total goals",
+    team_totals: "Team total goals", alternate_team_totals: "Team total goals", corners_1x2: "Most corners",
+    alternate_totals_corners: "Total corners", alternate_spreads_corners: "Corner handicap",
+    alternate_totals_cards: "Total cards", alternate_spreads_cards: "Card handicap",
+  };
+
+  for (const providerMarket of bookmaker.markets.filter(market => !knownKeys.has(market.key))) {
+    const baseName = labels[providerMarket.key] ?? providerMarket.key.replace(/_/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+    const pointGroups = new Map<string, OddsApiOutcome[]>();
+    for (const outcome of providerMarket.outcomes) {
+      const pointKey = outcome.point == null ? "main" : String(providerMarket.key.includes("spreads") ? Math.abs(outcome.point) : outcome.point);
+      const list = pointGroups.get(pointKey) ?? [];
+      list.push(outcome);
+      pointGroups.set(pointKey, list);
+    }
+    for (const [pointKey, outcomes] of pointGroups) {
+      const point = pointKey === "main" ? null : Number(pointKey);
+      const marketName = point == null ? baseName : baseName + " " + point;
+      results.push({
+        key: providerMarket.key.replace(/_/g, "-"), line: point, name: marketName,
+        outcomes: outcomes.filter(outcome => Number(outcome.price) > 1).map(outcome => {
+          const detail = [outcome.description, outcome.point == null ? null : String(outcome.point)].filter(Boolean).join(" ");
+          return {
+            key: slug([outcome.name, outcome.description, outcome.point].filter(value => value != null).join("-")),
+            name: detail ? outcome.name + " " + detail : outcome.name,
+            price: priced(outcome.price),
+          };
+        }),
+      });
+    }
+  }
+
+  return results.filter(result => result.outcomes.length > 1).map(r => ({ ...r, bookmakerKey: bookmaker.key }));
 }
 
 function normalizeDoubleChance(name: string, source: OddsApiEvent): "1X" | "12" | "X2" | null {

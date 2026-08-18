@@ -6,7 +6,7 @@ import { ApiError, apiRequest } from "../lib/api-client";
 import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
 
 type Odd = { id: string; marketId: string; outcomeId: string; label: string; value: number };
-type Group = { title: string; badge?: string; odds: Odd[] };
+type Group = { title: string; category: string; badge?: string; odds: Odd[] };
 type Pick = Odd & { group: string; eventId: string; match: string; sport: string; league: string };
 type ApiOutcome = { id: string; key: string; name: string; currentOdds: string | number | null; status: string };
 type ApiMarket = { id: string; key: string; name: string; status: string; outcomes: ApiOutcome[] };
@@ -25,9 +25,19 @@ function formatTime(value: string) {
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
 }
 
+function marketCategory(market: ApiMarket) {
+  const value = `${market.key} ${market.name}`.toLowerCase();
+  if (/corner|card|booking/.test(value)) return "Corners & cards";
+  if (/half|h1/.test(value)) return "Half-time";
+  if (/goal|score|btts|total/.test(value)) return "Goals";
+  if (/match-winner|double-chance|draw-no-bet/.test(value)) return "Popular";
+  return "Other";
+}
+
 function toGroups(markets: ApiMarket[]): Group[] {
   return markets.map((market, index) => ({
     title: market.name,
+    category: marketCategory(market),
     badge: index === 0 ? "POPULAR" : market.status !== "OPEN" ? market.status : undefined,
     odds: market.outcomes
       .filter(outcome => outcome.status === "ACTIVE" && Number(outcome.currentOdds ?? 0) > 0)
@@ -36,7 +46,6 @@ function toGroups(markets: ApiMarket[]): Group[] {
 }
 
 export default function MatchCenter({ matchId }: { matchId: string }) {
-  const [tab, setTab] = useState("Markets");
   const [category, setCategory] = useState("All");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [picks, setPicks] = useState<Pick[]>([]);
@@ -66,7 +75,10 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
       if (!mounted) return;
       setEvent(data);
       const next = toGroups(data.markets);
-      if (next.length) setMarketGroups(next);
+      if (next.length) {
+        setMarketGroups(next);
+        setOpen(Object.fromEntries(next.map((group, index) => [group.title, index < 2])));
+      }
       setNotice("");
     }).catch(() => {
       if (mounted) { setMarketGroups([]); setNotice("This event is currently unavailable."); }
@@ -75,6 +87,9 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
   }, [matchId]);
 
   useEffect(()=>{let mounted=true;getCurrentUser().then(current=>{if(mounted)setUser(current)}).catch(()=>{if(mounted)setUser(null)});return()=>{mounted=false}},[]);
+
+  const categories = ["All", ...Array.from(new Set(marketGroups.map(group => group.category)))];
+  const visibleGroups = category === "All" ? marketGroups : marketGroups.filter(group => group.category === category);
 
   const placeBet=async()=>{
     if(!user){window.location.href=`/login?next=${encodeURIComponent(`/sports/match/${matchId}`)}`;return;}
@@ -106,11 +121,12 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
           <div className="mc-match-title"><div><span className="team-crest">{shortName(home)}</span><strong>{home}</strong><small>Home</small></div><section><span>{eventTime}</span><b>{event?.homeScore != null && event?.awayScore != null ? `${event.homeScore} - ${event.awayScore}` : "VS"}</b><small>{event?.venue ?? "Venue TBA"}</small></section><div><span className="team-crest alt">{shortName(away)}</span><strong>{away}</strong><small>Away</small></div></div>
           <div className="mc-status"><span>Status: {event?.status ?? "SCHEDULED"}</span><span>{event?.sport?.name ?? "Football"}</span><span>{marketGroups.length} market groups</span><span>Match ID: {matchId}</span></div>
         </article>
+        {!!marketGroups.length&&<div className="mc-market-tools"><div>{categories.map(item=><button className={category===item?"active":""} onClick={()=>setCategory(item)} key={item}>{item}</button>)}</div><span>{visibleGroups.length} markets</span></div>}
         {notice&&<div className="sports-data-notice">{notice}</div>}
         {!notice&&!marketGroups.length&&<div className="no-events"><b>No open markets</b><span>Markets may be suspended or not yet published.</span></div>}
-        <div className="mc-markets">{marketGroups.map(group=><article id={`market-${group.title.replace(/\s+/g,"-").toLowerCase()}`} key={group.title}>
-          <button className="mc-market-head" onClick={()=>setOpen(v=>({...v,[group.title]:!v[group.title]}))}><span>{group.title}{group.badge&&<i>{group.badge}</i>}</span><b>{open[group.title]?"＋":"−"}</b></button>
-          {!open[group.title]&&<div className={`mc-odds ${group.odds.length===2?"two":""}`}>{group.odds.map(odd=><button className={picks.some(p=>p.id===odd.id)?"selected":""} onClick={()=>togglePick(group.title,odd)} key={odd.id}><span>{odd.label}</span><b>{odd.value.toFixed(2)}</b></button>)}</div>}
+        <div className="mc-markets">{visibleGroups.map(group=><article id={`market-${group.title.replace(/\s+/g,"-").toLowerCase()}`} key={group.title}>
+          <button className="mc-market-head" aria-expanded={!!open[group.title]} onClick={()=>setOpen(v=>({...v,[group.title]:!v[group.title]}))}><span>{group.title}{group.badge&&<i>{group.badge}</i>}</span><b>{open[group.title]?"−":"＋"}</b></button>
+          {open[group.title]&&<div className={`mc-odds ${group.odds.length===2?"two":""}`}>{group.odds.map(odd=><button className={picks.some(p=>p.id===odd.id)?"selected":""} onClick={()=>togglePick(group.title,odd)} key={odd.id}><span>{odd.label}</span><b>{odd.value.toFixed(2)}</b></button>)}</div>}
         </article>)}</div>
       </section>
 
