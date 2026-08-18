@@ -2,7 +2,6 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableEx
 import { ConfigService } from "@nestjs/config";
 import { EventStatus, MarketStatus, OutcomeStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { slug } from "./odds-feed.service";
 
 type OddsApiOutcome = { name: string; price: number; point?: number };
 type OddsApiMarket = { key: string; outcomes: OddsApiOutcome[] };
@@ -25,6 +24,10 @@ const DEFAULT_SPORT_KEYS = [
 
 const DEFAULT_MARKETS = "h2h,totals";
 const DEFAULT_EXTRA_MARKETS = "btts,draw_no_bet,double_chance";
+
+export function slug(value: string) {
+  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
 
 @Injectable()
 export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
