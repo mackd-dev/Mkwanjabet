@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { EventStatus, Prisma } from "@prisma/client";
+import { EventStatus, MarketStatus, OutcomeStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 const outcomeInclude = {
@@ -45,7 +45,8 @@ export class SportsbookService {
       sportId: filters.sportId,
       competitionId: filters.competitionId,
       status: filters.status ? this.parseStatus(filters.status) : { in: [EventStatus.SCHEDULED, EventStatus.LIVE] },
-      startsAt: this.dateRange(filters.from, filters.to),
+      startsAt: this.dateRange(filters.from, filters.to) ?? { gte: new Date(Date.now() - 8 * 60 * 60_000) },
+      markets: { some: { status: MarketStatus.OPEN, outcomes: { some: { status: OutcomeStatus.ACTIVE, currentOdds: { not: null } } } } },
     };
 
     return this.db.event.findMany({

@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { MarketStatus, OutcomeStatus, Prisma } from "@prisma/client";
+import { EventStatus, MarketStatus, OutcomeStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slug } from "./odds-feed.service";
 
@@ -8,7 +8,7 @@ type OddsApiOutcome = { name: string; price: number; point?: number };
 type OddsApiMarket = { key: string; outcomes: OddsApiOutcome[] };
 type OddsApiBookmaker = { key: string; title: string; last_update: string; markets: OddsApiMarket[] };
 type OddsApiEvent = {
-  id: string; sport_key: string; commence_time: string;
+  id: string; sport_key: string; sport_title?: string; commence_time: string;
   home_team: string; away_team: string; bookmakers: OddsApiBookmaker[];
 };
 type FeedStatus = {
@@ -19,7 +19,7 @@ type DbOutcome = { key: string; name: string; price: number };
 type DbMarket = { key: string; line: number | null; name: string; outcomes: DbOutcome[]; bookmakerKey?: string };
 
 const DEFAULT_SPORT_KEYS = [
-  "soccer_epl", "soccer_uefa_champs_league", "soccer_spain_la_liga", "soccer_italy_serie_a",
+  "soccer_epl", "soccer_efl_champ", "soccer_uefa_champs_league", "soccer_spain_la_liga", "soccer_italy_serie_a",
   "soccer_germany_bundesliga", "soccer_france_ligue_one", "soccer_uefa_europa_league",
 ].join(",");
 
@@ -81,6 +81,7 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
           if (await this.applyOdds(event)) matched++; else skipped++;
         }
       }
+      await this.expireStaleEvents();
       this.state.lastMatched = matched;
       this.state.lastSkipped = skipped;
       this.state.lastCompletedAt = new Date().toISOString();
@@ -99,15 +100,7 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
     const commenceAt = new Date(source.commence_time);
     if (!homeKey || !awayKey || Number.isNaN(commenceAt.getTime())) return false;
 
-    const windowStart = new Date(commenceAt.getTime() - 36 * 60 * 60_000);
-    const windowEnd = new Date(commenceAt.getTime() + 36 * 60 * 60_000);
-    const candidates = await this.db.event.findMany({
-      where: { startsAt: { gte: windowStart, lte: windowEnd } },
-      select: { id: true, homeTeamName: true, awayTeamName: true },
-    });
-    const match = candidates.find(c =>
-      teamKey(c.homeTeamName ?? "") === homeKey && teamKey(c.awayTeamName ?? "") === awayKey);
-    if (!match) return false;
+    const match = await this.resolveEvent(source, commenceAt, homeKey, awayKey);
 
     const bookmaker = source.bookmakers?.[0];
     if (!bookmaker) return false;
@@ -140,6 +133,86 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
       }
     });
     return true;
+  }
+
+  private async resolveEvent(source: OddsApiEvent, commenceAt: Date, homeKey: string, awayKey: string) {
+    const windowStart = new Date(commenceAt.getTime() - 36 * 60 * 60_000);
+    const windowEnd = new Date(commenceAt.getTime() + 36 * 60 * 60_000);
+    const candidates = await this.db.event.findMany({
+      where: { startsAt: { gte: windowStart, lte: windowEnd } },
+      select: { id: true, homeTeamName: true, awayTeamName: true },
+    });
+    const matched = candidates.find(candidate =>
+      teamKey(candidate.homeTeamName ?? "") === homeKey && teamKey(candidate.awayTeamName ?? "") === awayKey);
+    if (matched) {
+      return this.db.event.update({
+        where: { id: matched.id },
+        data: { startsAt: commenceAt, status: EventStatus.SCHEDULED, liveClock: null },
+        select: { id: true },
+      });
+    }
+
+    const metadata = sportMetadata(source.sport_key, source.sport_title);
+    return this.db.$transaction(async tx => {
+      const sport = await tx.sport.upsert({
+        where: { slug: "football" },
+        create: { slug: "football", code: "FOOTBALL", name: "Football" },
+        update: { active: true },
+      });
+      const countrySlug = slug(metadata.country);
+      const country = await tx.country.upsert({
+        where: { slug: countrySlug },
+        create: { sportId: sport.id, slug: countrySlug, name: metadata.country },
+        update: { sportId: sport.id, name: metadata.country, active: true },
+      });
+      const competition = await tx.competition.upsert({
+        where: { externalId: `odds-api-competition-${source.sport_key}` },
+        create: { sportId: sport.id, countryId: country.id, externalId: `odds-api-competition-${source.sport_key}`, slug: `odds-api-${slug(source.sport_key)}`, name: metadata.competition },
+        update: { sportId: sport.id, countryId: country.id, name: metadata.competition, active: true },
+      });
+      const resolveTeam = async (name: string) => {
+        const existing = await tx.team.findFirst({ where: { name: { equals: name, mode: "insensitive" } } });
+        if (existing) return existing;
+        return tx.team.upsert({
+          where: { slug: `odds-api-team-${teamKey(name)}` },
+          create: { slug: `odds-api-team-${teamKey(name)}`, name, shortCode: teamCode(name) },
+          update: { name, shortCode: teamCode(name) },
+        });
+      };
+      const homeTeam = await resolveTeam(source.home_team);
+      const awayTeam = await resolveTeam(source.away_team);
+      return tx.event.upsert({
+        where: { externalId: `odds-api-event-${source.id}` },
+        create: {
+          sportId: sport.id, countryId: country.id, competitionId: competition.id,
+          homeTeamId: homeTeam.id, awayTeamId: awayTeam.id,
+          externalId: `odds-api-event-${source.id}`, slug: `odds-api-${source.id}`,
+          name: `${source.home_team} vs ${source.away_team}`, startsAt: commenceAt,
+          status: EventStatus.SCHEDULED, homeTeamName: source.home_team, awayTeamName: source.away_team,
+        },
+        update: {
+          sportId: sport.id, countryId: country.id, competitionId: competition.id,
+          homeTeamId: homeTeam.id, awayTeamId: awayTeam.id,
+          name: `${source.home_team} vs ${source.away_team}`, startsAt: commenceAt,
+          status: EventStatus.SCHEDULED, homeTeamName: source.home_team, awayTeamName: source.away_team, liveClock: null,
+        },
+        select: { id: true },
+      });
+    });
+  }
+
+  private async expireStaleEvents() {
+    const cutoff = new Date(Date.now() - 8 * 60 * 60_000);
+    const stale = await this.db.event.findMany({
+      where: { status: { in: [EventStatus.SCHEDULED, EventStatus.LIVE] }, startsAt: { lt: cutoff } },
+      select: { id: true },
+    });
+    if (!stale.length) return;
+    const ids = stale.map(event => event.id);
+    await this.db.$transaction([
+      this.db.event.updateMany({ where: { id: { in: ids } }, data: { status: EventStatus.FINISHED, liveClock: null } }),
+      this.db.market.updateMany({ where: { eventId: { in: ids }, status: MarketStatus.OPEN }, data: { status: MarketStatus.SUSPENDED, suspendedAt: new Date(), suspensionReason: "Event start time has passed" } }),
+    ]);
   }
 
   private sportKeys() {
@@ -189,7 +262,30 @@ function shaded(price: number, marginFactor: number) {
   return Math.max(1.01, Math.floor(price * marginFactor * 100) / 100);
 }
 
-function teamKey(name: string) {
+export function sportMetadata(key: string, providerTitle?: string) {
+  const known: Record<string, { country: string; competition: string }> = {
+    soccer_epl: { country: "England", competition: "Premier League" },
+    soccer_efl_champ: { country: "England", competition: "Championship" },
+    soccer_spain_la_liga: { country: "Spain", competition: "La Liga" },
+    soccer_italy_serie_a: { country: "Italy", competition: "Serie A" },
+    soccer_germany_bundesliga: { country: "Germany", competition: "Bundesliga" },
+    soccer_france_ligue_one: { country: "France", competition: "Ligue 1" },
+    soccer_portugal_primeira_liga: { country: "Portugal", competition: "Primeira Liga" },
+    soccer_brazil_campeonato: { country: "Brazil", competition: "Serie A" },
+    soccer_argentina_primera_division: { country: "Argentina", competition: "Primera Division" },
+    soccer_uefa_champs_league: { country: "World", competition: "UEFA Champions League" },
+    soccer_uefa_champs_league_qualification: { country: "World", competition: "UEFA Champions League" },
+    soccer_uefa_europa_league: { country: "World", competition: "UEFA Europa League" },
+  };
+  return known[key] ?? { country: "World", competition: providerTitle?.trim() || key.replace(/^soccer_/, "").replace(/_/g, " ") };
+}
+
+export function teamCode(name: string) {
+  const words = name.replace(/[^a-z0-9 ]/gi, " ").split(/\s+/).filter(Boolean);
+  return (words.length > 1 ? words.map(word => word[0]).join("") : name.slice(0, 3)).toUpperCase().slice(0, 5);
+}
+
+export function teamKey(name: string) {
   const normalized = slug(name).replace(/-(fc|cf|sc|afc|cd|ca|ac)$/, "").replace(/^(fc|cf|sc|afc|cd|ca|ac)-/, "");
   return normalized;
 }

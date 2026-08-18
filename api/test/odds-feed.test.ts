@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EventStatus } from "@prisma/client";
-import { adjustedPrice, eventStatus, outcomeKey, slug, sportName, teamCode, todayInTimezone, uniqueCode } from "../src/modules/odds-feed/odds-feed.service";
+import { adjustedPrice, eventStatus, outcomeKey, slug, sportName, teamCode as apiFootballTeamCode, todayInTimezone, uniqueCode } from "../src/modules/odds-feed/odds-feed.service";
+import { sportMetadata, teamCode, teamKey } from "../src/modules/odds-feed/odds-api-feed.service";
 
 test("maps provider outcomes", () => {
   const event = { home_team: "Arsenal", away_team: "Chelsea" };
@@ -23,7 +24,12 @@ test("maps API-Football fixture status and team codes", () => {
   assert.equal(eventStatus("FT"), EventStatus.FINISHED);
   assert.equal(eventStatus("PST"), EventStatus.POSTPONED);
   assert.equal(eventStatus("NS"), EventStatus.SCHEDULED);
-  assert.equal(teamCode("Manchester United"), "MU");
-  assert.equal(teamCode("Azam"), "AZA");
+  assert.equal(apiFootballTeamCode("Manchester United"), "MU");
+  assert.equal(apiFootballTeamCode("Azam"), "AZA");
   assert.match(todayInTimezone("Africa/Dar_es_Salaam"), /^\d{4}-\d{2}-\d{2}$/);
+});
+test("maps paid odds schedules to sportsbook competitions", () => {
+  assert.deepEqual(sportMetadata("soccer_efl_champ"), { country: "England", competition: "Championship" });
+  assert.equal(teamKey("Queens Park Rangers FC"), "queens-park-rangers");
+  assert.equal(teamCode("Queens Park Rangers"), "QPR");
 });
