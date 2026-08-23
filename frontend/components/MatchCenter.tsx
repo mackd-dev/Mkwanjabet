@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, apiRequest } from "../lib/api-client";
 import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
@@ -48,6 +49,8 @@ function toGroups(markets: ApiMarket[]): Group[] {
 }
 
 export default function MatchCenter({ matchId }: { matchId: string }) {
+  const router = useRouter();
+  const goBack = () => { if (typeof window !== "undefined" && window.history.length > 1) router.back(); else router.push("/sports"); };
   const [category, setCategory] = useState("All");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [picks, setPicks] = useState<Pick[]>(()=>loadSlip());
@@ -118,7 +121,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
       <div>{user?<Link className="sports-register" href="/dashboard">My account</Link>:<><button onClick={()=>openAuth("login")}>Log in</button><button className="sports-register" onClick={()=>openAuth("register")}>Register</button></>}</div>
     </header>
 
-    <div className="mc-breadcrumb"><Link href="/sports">Sports</Link><span>›</span><span>{country}</span><span>›</span><span>{competition}</span><span>›</span><b>{home} vs {away}</b></div>
+    <div className="mc-breadcrumb"><button className="mc-back" onClick={goBack} aria-label="Go back">‹ Back</button><Link href="/sports">Sports</Link><span>›</span><span>{country}</span><span>›</span><span>{competition}</span><span>›</span><b>{home} vs {away}</b></div>
 
     <section className="mc-grid">
       <aside className="mc-left"><h4>Market categories</h4>{categories.map(item=>{const count=item==="All"?marketGroups.length:marketGroups.filter(group=>group.category===item).length;return <button className={category===item?"active":""} onClick={()=>setCategory(item)} key={item}><span>{item}</span><b>{count}</b></button>})}<div className="mc-side-note"><b>18+</b><span>Bet responsibly. Set limits and never chase losses.</span></div></aside>
