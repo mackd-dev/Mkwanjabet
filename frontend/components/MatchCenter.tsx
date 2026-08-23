@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, apiRequest } from "../lib/api-client";
 import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
+import { loadSlip, saveSlip, type SlipSelection } from "../lib/betslip";
 
 type Odd = { id: string; marketId: string; outcomeId: string; label: string; value: number };
 type Group = { title: string; category: string; badge?: string; odds: Odd[] };
-type Pick = Odd & { group: string; eventId: string; match: string; sport: string; league: string };
+type Pick = SlipSelection;
 type ApiOutcome = { id: string; key: string; name: string; currentOdds: string | number | null; status: string };
 type ApiMarket = { id: string; key: string; name: string; status: string; outcomes: ApiOutcome[] };
 type ApiEvent = {
@@ -48,14 +49,15 @@ function toGroups(markets: ApiMarket[]): Group[] {
 export default function MatchCenter({ matchId }: { matchId: string }) {
   const [category, setCategory] = useState("All");
   const [open, setOpen] = useState<Record<string, boolean>>({});
-  const [picks, setPicks] = useState<Pick[]>([]);
+  const [picks, setPicks] = useState<Pick[]>(()=>loadSlip());
+  useEffect(()=>{saveSlip(picks)},[picks]);
   const [stake, setStake] = useState(5000);
   const [event, setEvent] = useState<ApiEvent | null>(null);
   const [marketGroups, setMarketGroups] = useState<Group[]>([]);
   const [notice, setNotice] = useState("" );
   const [user,setUser]=useState<SessionUser|null>(null);
   const [placing,setPlacing]=useState(false);
-  const totalOdds = useMemo(() => picks.reduce((a, b) => a * b.value, 1), [picks]);
+  const totalOdds = useMemo(() => picks.reduce((a, b) => a * b.odds, 1), [picks]);
   const payout = totalOdds * stake;
   const home = event?.homeTeamName ?? event?.name.split(" vs ")[0] ?? "Loading";
   const away = event?.awayTeamName ?? event?.name.split(" vs ")[1] ?? "event";
@@ -64,9 +66,11 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
   const country = event?.country?.name ?? "";
 
   const togglePick = (group: string, odd: Odd) => {
-    setPicks(current => current.some(p => p.id === odd.id)
-      ? current.filter(p => p.id !== odd.id)
-      : [...current.filter(p => p.marketId !== odd.marketId), { ...odd, group, eventId: event?.slug ?? matchId, match: `${home} vs ${away}`, sport: event?.sport?.name ?? "Football", league: competition }]);
+    const eventId = event?.slug ?? matchId;
+    const id = `${eventId}-${odd.outcomeId}`;
+    setPicks(current => current.some(p => p.id === id)
+      ? current.filter(p => p.id !== id)
+      : [...current.filter(p => p.eventId !== eventId && p.marketId !== odd.marketId), { id, eventId, sport: event?.sport?.name ?? "Football", league: competition, match: `${home} vs ${away}`, marketId: odd.marketId, market: group, outcomeId: odd.outcomeId, pick: odd.label, odds: odd.value }]);
   };
 
   useEffect(() => {
@@ -96,7 +100,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
     if(!event||!picks.length)return;
     setPlacing(true);setNotice("");
     try{
-      const selections=picks.map(p=>({eventId:event.id,sport:p.sport,league:p.league,marketId:p.marketId,outcomeId:p.outcomeId,matchName:p.match,marketName:p.group,selection:p.label,odds:p.value}));
+      const selections=picks.map(p=>({eventId:p.eventId,sport:p.sport,league:p.league,marketId:p.marketId,outcomeId:p.outcomeId,matchName:p.match,marketName:p.market,selection:p.pick,odds:p.odds}));
       const bet=await authenticatedApiRequest<{ticketCode:string}>("/betting/place",{method:"POST",body:JSON.stringify({selections,stakeTzs:stake,acceptOddsChanges:true})});
       setPicks([]);setNotice(`Bet placed. Ticket ${bet.ticketCode}`);
     }catch(error){setNotice(error instanceof ApiError&&error.payload&&typeof error.payload==="object"&&typeof (error.payload as {message?:unknown}).message==="string"?String((error.payload as {message:string}).message):"The ticket could not be placed.");}
@@ -126,14 +130,14 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
         {!notice&&!marketGroups.length&&<div className="no-events"><b>No open markets</b><span>Markets may be suspended or not yet published.</span></div>}
         <div className="mc-markets">{visibleGroups.map(group=><article id={`market-${group.title.replace(/\s+/g,"-").toLowerCase()}`} key={group.title}>
           <button className="mc-market-head" aria-expanded={!!open[group.title]} onClick={()=>setOpen(v=>({...v,[group.title]:!v[group.title]}))}><span>{group.title}{group.badge&&<i>{group.badge}</i>}</span><b>{open[group.title]?"−":"＋"}</b></button>
-          {open[group.title]&&<div className={`mc-odds ${group.odds.length===2?"two":""}`}>{group.odds.map(odd=><button className={picks.some(p=>p.id===odd.id)?"selected":""} onClick={()=>togglePick(group.title,odd)} key={odd.id}><span>{odd.label}</span><b>{odd.value.toFixed(2)}</b></button>)}</div>}
+          {open[group.title]&&<div className={`mc-odds ${group.odds.length===2?"two":""}`}>{group.odds.map(odd=><button className={picks.some(p=>p.outcomeId===odd.outcomeId&&p.eventId===(event?.slug??matchId))?"selected":""} onClick={()=>togglePick(group.title,odd)} key={odd.id}><span>{odd.label}</span><b>{odd.value.toFixed(2)}</b></button>)}</div>}
         </article>)}</div>
       </section>
 
       <aside className="mc-slip">
         <div className="mc-slip-tabs"><button className="active">Betslip <b>{picks.length}</b></button><Link href="/my-bets">My Bets</Link></div>
         {!picks.length?<div className="mc-empty"><span>▤</span><h3>Your betslip is empty</h3><p>Tap any odds to add a selection.</p></div>:<>
-          <div className="mc-picks">{picks.map(p=><article key={p.id}><button onClick={()=>setPicks(x=>x.filter(v=>v.id!==p.id))}>×</button><small>{p.group}</small><strong>{p.label}</strong><span>{home} vs {away} <b>{p.value.toFixed(2)}</b></span></article>)}</div>
+          <div className="mc-picks">{picks.map(p=><article key={p.id}><button onClick={()=>setPicks(x=>x.filter(v=>v.id!==p.id))}>×</button><small>{p.market}</small><strong>{p.pick}</strong><span>{p.match} <b>{p.odds.toFixed(2)}</b></span></article>)}</div>
           <div className="mc-slip-summary"><label>Stake (TZS)<input type="number" value={stake} min="0" onChange={e=>setStake(Number(e.target.value)||0)}/></label><div>{[1000,2000,5000,10000].map(v=><button onClick={()=>setStake(v)} key={v}>+{v/1000}K</button>)}</div><p><span>Total odds</span><b>{totalOdds.toFixed(2)}</b></p><p><span>Potential payout</span><b>TZS {payout.toLocaleString("en-US",{maximumFractionDigits:0})}</b></p><button className="place-bet-btn" onClick={placeBet} disabled={placing}>{placing?"Placing...":user?"Place bet":"Log in & place bet"}</button><small>18+ · Stakes are deducted from your wallet when accepted.</small></div>
         </>}
       </aside>

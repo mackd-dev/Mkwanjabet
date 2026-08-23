@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, apiRequest } from "../lib/api-client";
 import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
+import { loadSlip, saveSlip, type SlipSelection } from "../lib/betslip";
 
 type Market = { id: string; outcomeId: string; label: string; name: string; odds: number };
 type Event = {
@@ -11,18 +12,7 @@ type Event = {
   home: string; away: string; score?: string; markets: Market[]; more: number; live?: boolean;
   homeLogo?: string; awayLogo?: string; leagueLogo?: string; bannerLogo?: string;
 };
-type Selection = {
-  id: string;
-  eventId: string;
-  sport: string;
-  league: string;
-  match: string;
-  marketId: string;
-  market: string;
-  outcomeId: string;
-  pick: string;
-  odds: number;
-};
+type Selection = SlipSelection;
 type ApiOutcome = { id: string; key: string; name: string; currentOdds: string | number | null };
 type ApiMarket = { id: string; key: string; name: string; outcomes: ApiOutcome[] };
 type ApiEvent = {
@@ -153,7 +143,8 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [eventsNotice,setEventsNotice]=useState("");
   const [eventsLoading,setEventsLoading]=useState(true);
   const [eventsReload,setEventsReload]=useState(0);
-  const [slip,setSlip]=useState<Selection[]>([]);
+  const [slip,setSlip]=useState<Selection[]>(()=>loadSlip());
+  useEffect(()=>{saveSlip(slip)},[slip]);
   const [stake,setStake]=useState(5000);
   const [mobileSlip,setMobileSlip]=useState(false);
   const [oddsAccepted,setOddsAccepted]=useState(true);
