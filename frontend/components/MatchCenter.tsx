@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, apiRequest } from "../lib/api-client";
 import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
 import { loadSlip, saveSlip, type SlipSelection } from "../lib/betslip";
+import AuthModal from "./AuthModal";
 
 type Odd = { id: string; marketId: string; outcomeId: string; label: string; value: number };
 type Group = { title: string; category: string; badge?: string; odds: Odd[] };
@@ -57,6 +58,9 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
   const [notice, setNotice] = useState("" );
   const [user,setUser]=useState<SessionUser|null>(null);
   const [placing,setPlacing]=useState(false);
+  const [authOpen,setAuthOpen]=useState(false);
+  const [authMode,setAuthMode]=useState<"login"|"register">("login");
+  const openAuth=(mode:"login"|"register"="login")=>{setAuthMode(mode);setAuthOpen(true)};
   const totalOdds = useMemo(() => picks.reduce((a, b) => a * b.odds, 1), [picks]);
   const payout = totalOdds * stake;
   const home = event?.homeTeamName ?? event?.name.split(" vs ")[0] ?? "Loading";
@@ -96,7 +100,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
   const visibleGroups = category === "All" ? marketGroups : marketGroups.filter(group => group.category === category);
 
   const placeBet=async()=>{
-    if(!user){window.location.href=`/login?next=${encodeURIComponent(`/sports/match/${matchId}`)}`;return;}
+    if(!user){openAuth("login");return;}
     if(!event||!picks.length)return;
     setPlacing(true);setNotice("");
     try{
@@ -111,7 +115,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
     <header className="mc-header">
       <Link className="sports-brand" href="/sports"><img src="/brand/icon/mb-mark-color.png" alt="MkwanjaBet"/><span className="sr-only">MkwanjaBet</span></Link>
       <nav><Link href="/sports">Sports</Link><Link href="/live">Live</Link><Link href="/my-bets">My bets</Link><Link href="/responsible-play">Responsible play</Link></nav>
-      <div>{user?<Link className="sports-register" href="/dashboard">My account</Link>:<><Link href={`/login?next=/sports/match/${matchId}`}>Log in</Link><Link className="sports-register" href="/register">Register</Link></>}</div>
+      <div>{user?<Link className="sports-register" href="/dashboard">My account</Link>:<><button onClick={()=>openAuth("login")}>Log in</button><button className="sports-register" onClick={()=>openAuth("register")}>Register</button></>}</div>
     </header>
 
     <div className="mc-breadcrumb"><Link href="/sports">Sports</Link><span>›</span><span>{country}</span><span>›</span><span>{competition}</span><span>›</span><b>{home} vs {away}</b></div>
@@ -142,5 +146,6 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
         </>}
       </aside>
     </section>
+    <AuthModal open={authOpen} mode={authMode} onModeChange={setAuthMode} onClose={()=>setAuthOpen(false)} onSuccess={u=>{setUser(u);setAuthOpen(false)}}/>
   </main>;
 }

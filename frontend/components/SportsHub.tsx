@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import AuthModal from "./AuthModal";
+import { useEffect, useMemo, useState } from "react";
 import { ApiError, apiRequest } from "../lib/api-client";
-import { authenticatedApiRequest, getCurrentUser, saveSession, type SessionUser } from "../lib/session";
+import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
 import { loadSlip, saveSlip, type SlipSelection } from "../lib/betslip";
 
 type Market = { id: string; outcomeId: string; label: string; name: string; odds: number };
@@ -29,14 +30,6 @@ type PlacedBet = { id: string; ticketCode: string; potentialReturnTzs: number };
 type BookingQuote = { code:string; stakeTzs:number; minimumBookingStakeTzs:number; selectionCount:number; totalOdds:number; potentialReturnTzs:number; availableBalanceTzs:number };
 type BetPrompt = { kind:"deposit"|"confirm"; title:string; message:string; primary:string; secondary:string; stakeTzs:number };
 type AccountBet = { id:string; betId:string; bookingCode?:string; type:"Single"|"Accumulator"; status:"Open"|"Won"|"Lost"|"Void"|"Cashed out"; rawStatus:string; stake:number; odds:number; returnAmount:number; cashOut?:number; date:string; settledAt?:string; selections:{eventId:string;marketId:string;outcomeId:string;match:string;market:string;pick:string;odd:number;state:string}[] };
-function normalizeIdentifier(value: string) {
-  const trimmed = value.trim();
-  if (trimmed.includes("@")) return trimmed.toLowerCase();
-  const digits = trimmed.replace(/\D/g, "");
-  if (digits.startsWith("255")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+255${digits.slice(1)}`;
-  return `+255${digits}`;
-}
 function apiMessage(error: unknown) {
   if (error instanceof ApiError && error.payload && typeof error.payload === "object") {
     const payload = error.payload as { message?: unknown; errors?: unknown };
@@ -173,15 +166,6 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   const [depositResume,setDepositResume]=useState<{stakeTzs:number;bookingCode?:string}|null>(null);
   const [loginOpen,setLoginOpen]=useState(false);
   const [authMode,setAuthMode]=useState<"login"|"register">("login");
-  const [loginPhone,setLoginPhone]=useState("");
-  const [loginPassword,setLoginPassword]=useState("");
-  const [loginShowPassword,setLoginShowPassword]=useState(false);
-  const [loginBusy,setLoginBusy]=useState(false);
-  const [loginError,setLoginError]=useState("");
-  const [registerFirstName,setRegisterFirstName]=useState("");
-  const [registerLastName,setRegisterLastName]=useState("");
-  const [registerEmail,setRegisterEmail]=useState("");
-  const [registerAgree,setRegisterAgree]=useState(false);
   const [bannerIndex,setBannerIndex]=useState(0);
   const [slipNotice,setSlipNotice]=useState("");
   const [slipBusy,setSlipBusy]=useState(false);
@@ -323,24 +307,11 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
     } catch(error){setSlipNotice(apiMessage(error));}finally{setSlipBusy(false)}
   };
   const refreshWallet=async()=>{const balance=await authenticatedApiRequest<Wallet>("/wallet/me");setWallet(balance);return balance};
-  const openLoginModal=(mode:"login"|"register"="login")=>{setAuthMode(mode);setLoginPhone("");setLoginPassword("");setRegisterFirstName("");setRegisterLastName("");setRegisterEmail("");setRegisterAgree(false);setLoginError("");setLoginOpen(true)};
-  const submitLogin=async(event:FormEvent<HTMLFormElement>)=>{
-    event.preventDefault();
-    if(authMode==="register"&&!registerAgree){setLoginError("Tafadhali kubali Masharti ya Matumizi na Sera ya Faragha.");return;}
-    setLoginBusy(true);setLoginError("");
-    try{
-      const phone=normalizeIdentifier(loginPhone);
-      const body=authMode==="login"
-        ?{identifier:phone,password:loginPassword}
-        :{name:`${registerFirstName} ${registerLastName}`.trim(),phone,...(registerEmail?{email:registerEmail.trim().toLowerCase()}:{}),password:loginPassword};
-      const session=await apiRequest<{user:SessionUser;accessToken:string;refreshToken:string}>(authMode==="login"?"/auth/login":"/auth/register",{method:"POST",body:JSON.stringify(body)});
-      saveSession(session);
-      setUser(session.user);
-      try{setWallet(await authenticatedApiRequest<Wallet>("/wallet/me"))}catch{setWallet(null)}
-      setLoginOpen(false);setLoginPhone("");setLoginPassword("");
-    }catch(error){
-      setLoginError(error instanceof ApiError&&error.payload&&typeof error.payload==="object"&&typeof (error.payload as {message?:unknown}).message==="string"?String((error.payload as {message:string}).message):authMode==="login"?"Imeshindikana kuingia. Hakikisha namba na nenosiri ni sahihi.":"Imeshindikana kufungua akaunti. Jaribu tena.");
-    }finally{setLoginBusy(false)}
+  const openLoginModal=(mode:"login"|"register"="login")=>{setAuthMode(mode);setLoginOpen(true)};
+  const onAuthSuccess=async(authedUser:SessionUser)=>{
+    setUser(authedUser);
+    try{setWallet(await authenticatedApiRequest<Wallet>("/wallet/me"))}catch{setWallet(null)}
+    setLoginOpen(false);
   };
   const openDepositModal=(amountTzs=10000,resume?:{stakeTzs:number;bookingCode?:string})=>{
     if(!user){openLoginModal();return;}
@@ -460,16 +431,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
   </aside>);
 
   return <main className="sports-shell">
-    {loginOpen&&<div className="booking-modal-backdrop sports-login-backdrop" role="presentation" onMouseDown={()=>!loginBusy&&setLoginOpen(false)}><section className="booking-modal sports-login-modal" role="dialog" aria-modal="true" aria-labelledby="sports-login-title" onMouseDown={e=>e.stopPropagation()}><header><div className="sports-login-heading"><img className="sports-login-mark" src="/brand/icon/mb-mark-color.png" alt=""/><div><span>{authMode==="login"?"KARIBU TENA":"ANZA SASA"}</span><h2 id="sports-login-title">{authMode==="login"?"Ingia kwenye MkwanjaBet":"Fungua akaunti yako"}</h2></div></div><button aria-label="Close" onClick={()=>setLoginOpen(false)} disabled={loginBusy}>×</button></header><form className="sports-login-form" onSubmit={submitLogin}>
-      {authMode==="register"&&<div className="sports-login-two-col"><label><span>Jina la kwanza</span><input required minLength={2} value={registerFirstName} onChange={e=>setRegisterFirstName(e.target.value)} placeholder="Mfano: Asha"/></label><label><span>Jina la mwisho</span><input required minLength={2} value={registerLastName} onChange={e=>setRegisterLastName(e.target.value)} placeholder="Mfano: Salum"/></label></div>}
-      <label><span>Namba ya simu</span><div className="phone-field"><b>+255</b><input required autoFocus={authMode==="login"} inputMode="tel" value={loginPhone} onChange={e=>setLoginPhone(e.target.value.replace(/[^0-9+]/g,""))} placeholder="7XX XXX XXX"/></div></label>
-      {authMode==="register"&&<label><span>Barua pepe <small>(si lazima)</small></span><input type="email" value={registerEmail} onChange={e=>setRegisterEmail(e.target.value)} placeholder="jina@example.com"/></label>}
-      <label><span>Nenosiri</span><div className="password-field"><input required minLength={8} type={loginShowPassword?"text":"password"} value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder="Angalau tarakimu 8"/><button type="button" onClick={()=>setLoginShowPassword(!loginShowPassword)}>{loginShowPassword?"Ficha":"Onyesha"}</button></div></label>
-      {authMode==="register"&&<label className="sports-login-check"><input required type="checkbox" checked={registerAgree} onChange={e=>setRegisterAgree(e.target.checked)}/><span>Ninakubali <a href="/terms" target="_blank">Masharti ya Matumizi</a> na <a href="/privacy" target="_blank">Sera ya Faragha</a>.</span></label>}
-      {loginError&&<div className="booking-modal-error">{loginError}</div>}
-      <button className="place-bet-btn sports-login-submit" type="submit" disabled={loginBusy}>{loginBusy?(authMode==="login"?"Inaingia...":"Inafungua akaunti..."):(authMode==="login"?"Ingia kwenye Akaunti":"Fungua Akaunti")}</button>
-      <p className="sports-login-switch">{authMode==="login"?<>Huna akaunti? <button type="button" onClick={()=>openLoginModal("register")}>Jiunge sasa</button></>:<>Tayari una akaunti? <button type="button" onClick={()=>openLoginModal("login")}>Ingia hapa</button></>}</p>
-    </form></section></div>}
+    <AuthModal open={loginOpen} mode={authMode} onModeChange={setAuthMode} onClose={()=>setLoginOpen(false)} onSuccess={onAuthSuccess}/>
     {depositOpen&&<div className="booking-modal-backdrop sports-deposit-backdrop" role="presentation" onMouseDown={()=>!depositBusy&&setDepositOpen(false)}><section className="booking-modal sports-deposit-modal" role="dialog" aria-modal="true" aria-labelledby="sports-deposit-title" onMouseDown={e=>e.stopPropagation()}><header><div><span>INSTANT WALLET TOP UP</span><h2 id="sports-deposit-title">Deposit funds</h2></div><button aria-label="Close" onClick={()=>setDepositOpen(false)} disabled={depositBusy}>×</button></header><div className="sports-deposit-card"><div className="sports-deposit-balance"><span>Available balance</span><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></div><div className="sports-deposit-methods">{depositMethods.map(method=><button key={method.name} className={depositMethod===method.name?"active":""} onClick={()=>setDepositMethod(method.name)} disabled={depositBusy}><b>{method.code}</b><span>{method.name}<small>{method.hint}</small></span></button>)}</div><label className="sports-deposit-phone"><span>Mobile number</span><div><b>+255</b><input inputMode="tel" value={depositPhone} onChange={e=>setDepositPhone(e.target.value.replace(/[^0-9+]/g,""))} placeholder="7XX XXX XXX"/></div></label><label className="sports-deposit-amount"><span>Amount</span><div><b>TZS</b><input inputMode="numeric" value={depositAmount} onChange={e=>setDepositAmount(e.target.value.replace(/\D/g,""))}/></div></label><div className="sports-deposit-chips">{[5000,10000,20000,50000].map(amount=><button key={amount} onClick={()=>setDepositAmount(String(amount))} disabled={depositBusy}>{amount.toLocaleString()}</button>)}</div>{depositResume&&<div className="sports-deposit-resume"><b>Funding pending ticket</b><span>Stake TZS {depositResume.stakeTzs.toLocaleString()}{depositResume.bookingCode?` · Booking ${depositResume.bookingCode}`:""}</span></div>}{depositError&&<div className="booking-modal-error">{depositError}</div>}{depositNotice&&<div className="sports-deposit-notice">{depositNotice}</div>}</div><footer><button className="secondary" onClick={()=>setDepositOpen(false)} disabled={depositBusy}>Stay on sports</button><button className="deposit" onClick={submitDeposit} disabled={depositBusy}>{depositBusy?"Sending push...":"Deposit TZS "+(Number(depositAmount)||0).toLocaleString()}</button></footer><p>Approve the mobile-money push on your phone. Your balance updates here when the payment confirms.</p></section></div>}
     {betPrompt&&<div className="booking-modal-backdrop bet-prompt-backdrop" role="presentation" onMouseDown={()=>!slipBusy&&setBetPrompt(null)}><section className="booking-modal bet-prompt" role="dialog" aria-modal="true" aria-labelledby="bet-prompt-title" onMouseDown={e=>e.stopPropagation()}><header><div><span>{betPrompt.kind==="deposit"?"WALLET CHECK":"BETSLIP CONFIRMATION"}</span><h2 id="bet-prompt-title">{betPrompt.title}</h2></div><button aria-label="Close" onClick={()=>setBetPrompt(null)} disabled={slipBusy}>×</button></header><div className="bet-prompt-body"><p>{betPrompt.message}</p><div><span>Stake</span><b>TZS {betPrompt.stakeTzs.toLocaleString()}</b></div><div><span>Wallet balance</span><b>TZS {(wallet?.availableBalanceTzs??0).toLocaleString("en-US")}</b></div>{betPrompt.kind==="deposit"&&<small>We will keep the ticket in your browser so you can return after funding.</small>}</div><footer><button className="secondary" onClick={()=>setBetPrompt(null)} disabled={slipBusy}>{betPrompt.secondary}</button><button className={betPrompt.kind==="deposit"?"deposit":"confirm"} disabled={slipBusy} onClick={()=>betPrompt.kind==="deposit"?depositForBet(betPrompt.stakeTzs):submitBet()}>{slipBusy?"Working...":betPrompt.primary}</button></footer></section></div>}
     {bookingQuote&&<div className="booking-modal-backdrop" role="presentation" onMouseDown={()=>!slipBusy&&setBookingQuote(null)}><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-modal-title" onMouseDown={e=>e.stopPropagation()}><header><div><span>SECURE BOOKING</span><h2 id="booking-modal-title">Confirm your ticket</h2></div><button aria-label="Close" onClick={()=>setBookingQuote(null)} disabled={slipBusy}>×</button></header><div className="booking-modal-code"><span>Booking code</span><strong>{bookingQuote.code}</strong><small>Picks remain hidden until this wallet-backed ticket is accepted.</small></div><div className="booking-modal-stats"><div><span>Selections</span><b>{bookingQuote.selectionCount}</b></div><div><span>Total odds</span><b>{bookingQuote.totalOdds.toFixed(2)}</b></div><div><span>Potential return</span><b>TZS {Math.floor((Number(bookingStake)||0)*bookingQuote.totalOdds).toLocaleString()}</b></div></div><label className="booking-modal-stake"><span>Your stake · Minimum TZS {bookingQuote.minimumBookingStakeTzs.toLocaleString()}</span><div><b>TZS</b><input autoFocus type="number" min={bookingQuote.minimumBookingStakeTzs} step="500" value={bookingStake} onChange={e=>{setBookingStake(e.target.value);setBookingModalError("")}}/></div></label><div className="booking-modal-balance"><span>Available balance</span><b>TZS {bookingQuote.availableBalanceTzs.toLocaleString()}</b></div>{bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)&&<div className="booking-modal-warning"><b>Deposit required</b><span>You need TZS {Math.max(0,(Number(bookingStake)||0)-bookingQuote.availableBalanceTzs).toLocaleString()} more. Deposited funds stay in your wallet until you return and confirm.</span></div>}{bookingModalError&&<div className="booking-modal-error">{bookingModalError}</div>}<footer><button className="secondary" onClick={()=>setBookingQuote(null)} disabled={slipBusy}>Cancel</button><button className={bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)?"deposit":"confirm"} onClick={confirmBooking} disabled={slipBusy}>{slipBusy?"Processing...":bookingQuote.availableBalanceTzs<(Number(bookingStake)||0)?"Deposit funds":"Confirm & place bet"}</button></footer><p>Current odds, account limits, and wallet balance are revalidated before acceptance.</p></section></div>}
