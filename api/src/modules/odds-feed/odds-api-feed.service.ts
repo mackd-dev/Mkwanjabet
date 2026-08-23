@@ -84,6 +84,7 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
           if (await this.applyOdds(event)) matched++; else skipped++;
         }
       }
+      await this.promoteLiveEvents();
       await this.expireStaleEvents();
       this.state.lastMatched = matched;
       this.state.lastSkipped = skipped;
@@ -150,7 +151,7 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
     if (matched) {
       return this.db.event.update({
         where: { id: matched.id },
-        data: { startsAt: commenceAt, status: EventStatus.SCHEDULED, liveClock: null },
+        data: { startsAt: commenceAt },
         select: { id: true },
       });
     }
@@ -197,10 +198,17 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
           sportId: sport.id, countryId: country.id, competitionId: competition.id,
           homeTeamId: homeTeam.id, awayTeamId: awayTeam.id,
           name: `${source.home_team} vs ${source.away_team}`, startsAt: commenceAt,
-          status: EventStatus.SCHEDULED, homeTeamName: source.home_team, awayTeamName: source.away_team, liveClock: null,
+          homeTeamName: source.home_team, awayTeamName: source.away_team,
         },
         select: { id: true },
       });
+    });
+  }
+
+  private async promoteLiveEvents() {
+    await this.db.event.updateMany({
+      where: { status: EventStatus.SCHEDULED, startsAt: { lte: new Date() } },
+      data: { status: EventStatus.LIVE },
     });
   }
 
