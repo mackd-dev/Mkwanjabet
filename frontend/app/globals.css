@@ -373,3 +373,14 @@ button.wallet-preview{cursor:pointer;font:inherit}
 .sports-login-switch{font-size:12px}
 .sports-login-heading{display:flex;align-items:center;gap:12px}
 .sports-login-mark{width:38px;height:38px;border-radius:10px;object-fit:contain;background:#0f2a1c;padding:5px;flex:0 0 auto}
+button.sports-register{border:0;cursor:pointer;font:inherit}
+.sports-login-two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sports-login-check{display:flex!important;align-items:flex-start;gap:8px}
+.sports-login-check input{width:16px;height:16px;accent-color:#16a34a;flex:0 0 auto;margin-top:2px}
+.sports-login-check span{margin:0!important;font-size:11px!important;line-height:1.5;color:#5c6b62}
+.sports-login-check a{color:#13843e;font-weight:800}
+.sports-login-switch button{border:0;background:transparent;color:#13843e;font-weight:900;cursor:pointer;font:inherit;padding:0}
+@media(max-width:600px){.sports-login-two-col{grid-template-columns:1fr}}
+.sports-login-form>label>input,.sports-login-two-col input{width:100%;height:50px;border-radius:10px;border:1.5px solid #d7e1da;background:#fff;padding:0 14px;font:inherit;font-size:14px;color:#102117;outline:none;transition:border-color .15s,box-shadow .15s}
+.sports-login-form>label>input:focus,.sports-login-two-col input:focus{border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.14)}
+.sports-login-form label small{font-weight:600;color:#98a49c}
