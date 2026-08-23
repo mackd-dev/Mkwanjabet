@@ -353,3 +353,23 @@ button.wallet-preview{cursor:pointer;font:inherit}
 .sports-login-submit{width:100%;justify-content:center;border:0;margin-top:2px}
 .sports-login-switch{text-align:center;color:#7d8b82;font-size:11px;margin:14px 0 0}
 .sports-login-switch a{color:#13843e;font-weight:900;text-decoration:none}
+.sports-login-modal{border-radius:18px;overflow:hidden}
+.sports-login-modal>header{padding:24px 26px 18px;align-items:center}
+.sports-login-modal>header span{letter-spacing:.08em}
+.sports-login-modal>header h2{font-size:21px;font-weight:900}
+.sports-login-modal>header button{border-radius:50%;width:32px;height:32px}
+.sports-login-form{padding:22px 26px 26px;margin-top:0;gap:16px}
+.sports-login-form label>span{color:#1c2e23;font-size:11px}
+.sports-login-form .phone-field,.sports-login-form .password-field{border:1.5px solid #d7e1da;border-radius:10px;transition:border-color .15s,box-shadow .15s}
+.sports-login-form .phone-field:focus-within,.sports-login-form .password-field:focus-within{border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.14)}
+.sports-login-form .phone-field b{background:#f0f4f1;border:0;border-right:1.5px solid #d7e1da;border-radius:10px 0 0 10px;padding:0 13px;font-size:13px}
+.sports-login-form .phone-field input,.sports-login-form .password-field input{border:0;height:50px;padding:0 14px;font-size:14px;border-radius:0 10px 10px 0}
+.sports-login-form .password-field{position:relative}
+.sports-login-form .password-field input{border-radius:10px;padding-right:64px}
+.sports-login-form .password-field button{position:absolute;right:12px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#13843e;font-size:11px;font-weight:900;cursor:pointer}
+.sports-login-form input:focus{outline:none}
+.sports-login-submit{height:52px;font-size:14px;border-radius:10px;letter-spacing:.02em;transition:filter .15s}
+.sports-login-submit:hover:not(:disabled){filter:brightness(1.06)}
+.sports-login-switch{font-size:12px}
+.sports-login-heading{display:flex;align-items:center;gap:12px}
+.sports-login-mark{width:38px;height:38px;border-radius:10px;object-fit:contain;background:#0f2a1c;padding:5px;flex:0 0 auto}
