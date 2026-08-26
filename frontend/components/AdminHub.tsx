@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "../lib/api-client";
 import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
+import { sanitizeAmountInput } from "../lib/format";
 import AdminSportsbookManager from "./AdminSportsbookManager";
 import AdminAuditLog from "./AdminAuditLog";
 
@@ -44,5 +45,5 @@ function Title({eyebrow,title,copy}:{eyebrow:string;title:string;copy:string}){r
 function Stat({label,value,alert=false}:{label:string;value:string|number;alert?:boolean}){return <article className={alert?"alert":""}><small>{label}</small><strong>{value}</strong></article>}
 function Status({label,on}:{label:string;on:boolean}){return <div><span className={on?"on":"off"}></span><b>{label}</b><small>{on?"Enabled":"Disabled"}</small></div>}
 function Toggle({label,checked,set}:{label:string;checked:boolean;set:(v:boolean)=>void}){return <label className="admin-toggle"><span><b>{label}</b><small>{checked?"Enabled":"Disabled"}</small></span><input type="checkbox" checked={checked} onChange={e=>set(e.target.checked)}/></label>}
-function NumberField({label,value,set}:{label:string;value:number;set:(v:number)=>void}){return <label className="admin-field"><span>{label}</span><input type="number" min="0" value={value} onChange={e=>set(Number(e.target.value)||0)}/></label>}
+function NumberField({label,value,set}:{label:string;value:number;set:(v:number)=>void}){return <label className="admin-field"><span>{label}</span><input type="text" inputMode="numeric" value={value||""} placeholder="0" onChange={e=>set(Number(sanitizeAmountInput(e.target.value))||0)}/></label>}
 function MoneyGroup({title,fields,settings,set}:{title:string;fields:[string,keyof Settings][];settings:Settings;set:(v:Settings)=>void}){return <div className="admin-panel"><h2>{title}</h2>{fields.map(([label,key])=><NumberField key={key} label={label} value={Number(settings[key])} set={v=>set({...settings,[key]:v})}/>)}</div>}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../lib/api-client";
+import { sanitizeAmountInput } from "../lib/format";
 
 type Phase = "BETTING" | "FLYING" | "CRASHED";
 type RoundView = { id: string; roundNumber: number; phase: Phase; multiplier: number; serverSeedHash: string; clientSeed: string; nonce: number; startsAt: string; bettingClosesAt: string; crashedAt: string | null; crashPoint: number | null };
@@ -75,7 +76,7 @@ export default function AviatorDemoGame({ slug, session }: { slug: string; sessi
 
     <aside className="aviator-panel">
       <div className="aviator-wallet"><span>Demo balance</span><b>{money(demoSession?.playMoneyBalanceTzs ?? 0)}</b><small>No real MkwanjaBet wallet movement</small></div>
-      <label><span>Stake</span><input type="number" min={100} step={100} value={stake} onChange={(event) => setStake(Math.max(0, Number(event.target.value) || 0))} disabled={!!bet && bet.status === "PLACED"}/></label>
+      <label><span>Stake</span><input type="text" inputMode="numeric" value={stake||""} placeholder="0" onChange={(event) => setStake(Math.max(0, Number(sanitizeAmountInput(event.target.value)) || 0))} disabled={!!bet && bet.status === "PLACED"}/></label>
       <div className="aviator-chips">{[500, 1000, 2500, 5000].map((amount) => <button onClick={() => setStake(amount)} disabled={!!bet && bet.status === "PLACED"} key={amount}>{amount.toLocaleString()}</button>)}</div>
       <div className="aviator-return"><span>Potential return</span><b>{money(potentialWin)}</b></div>
       {canCashout ? <button className="cashout" onClick={cashout} disabled={busy}>Cash out {money(potentialWin)}</button> : <button onClick={placeBet} disabled={!canBet || busy}>{bet?.status === "PLACED" ? "Bet placed" : bet?.status === "CASHED_OUT" ? "Cashed out" : bet?.status === "LOST" ? "Round lost" : "Place demo bet"}</button>}

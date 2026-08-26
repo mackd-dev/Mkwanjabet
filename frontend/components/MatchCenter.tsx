@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, apiRequest } from "../lib/api-client";
 import { authenticatedApiRequest, getCurrentUser, type SessionUser } from "../lib/session";
 import { loadSlip, saveSlip, type SlipSelection } from "../lib/betslip";
+import { sanitizeAmountInput } from "../lib/format";
 import AuthModal from "./AuthModal";
 
 type Odd = { id: string; marketId: string; outcomeId: string; label: string; value: number };
@@ -145,7 +146,7 @@ export default function MatchCenter({ matchId }: { matchId: string }) {
         <div className="mc-slip-tabs"><button className="active">Betslip <b>{picks.length}</b></button><Link href="/my-bets">My Bets</Link></div>
         {!picks.length?<div className="mc-empty"><span>▤</span><h3>Your betslip is empty</h3><p>Tap any odds to add a selection.</p></div>:<>
           <div className="mc-picks">{picks.map(p=><article key={p.id}><button onClick={()=>setPicks(x=>x.filter(v=>v.id!==p.id))}>×</button><small>{p.market}</small><strong>{p.pick}</strong><span>{p.match} <b>{p.odds.toFixed(2)}</b></span></article>)}</div>
-          <div className="mc-slip-summary"><label>Stake (TZS)<input type="number" value={stake} min="0" onChange={e=>setStake(Number(e.target.value)||0)}/></label><div>{[1000,2000,5000,10000].map(v=><button onClick={()=>setStake(v)} key={v}>+{v/1000}K</button>)}</div><p><span>Total odds</span><b>{totalOdds.toFixed(2)}</b></p><p><span>Potential payout</span><b>TZS {payout.toLocaleString("en-US",{maximumFractionDigits:0})}</b></p><button className="place-bet-btn" onClick={placeBet} disabled={placing}>{placing?"Placing...":user?"Place bet":"Log in & place bet"}</button><small>18+ · Stakes are deducted from your wallet when accepted.</small></div>
+          <div className="mc-slip-summary"><label>Stake (TZS)<input type="text" inputMode="numeric" value={stake||""} placeholder="0" onChange={e=>setStake(Number(sanitizeAmountInput(e.target.value))||0)}/></label><div>{[1000,2000,5000,10000].map(v=><button onClick={()=>setStake(v)} key={v}>+{v/1000}K</button>)}</div><p><span>Total odds</span><b>{totalOdds.toFixed(2)}</b></p><p><span>Potential payout</span><b>TZS {payout.toLocaleString("en-US",{maximumFractionDigits:0})}</b></p><button className="place-bet-btn" onClick={placeBet} disabled={placing}>{placing?"Placing...":user?"Place bet":"Log in & place bet"}</button><small>18+ · Stakes are deducted from your wallet when accepted.</small></div>
         </>}
       </aside>
     </section>

@@ -11,7 +11,7 @@ const CASH_OUT_MARGIN = 0.92;
 export class BettingService {
   constructor(private readonly db: PrismaService, private readonly controls: OperatorControlsService) {}
 
-  private bookingCode() { return `MKB-${randomBytes(2).toString("hex").toUpperCase()}`; }
+  private bookingCode() { const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; const bytes=randomBytes(6); let code=""; for(let i=0;i<6;i++)code+=chars[bytes[i]%chars.length]; return code; }
   private ticketCode() { return `MB-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString("hex").toUpperCase()}`; }
   private betStatusLabel(status: BetStatus) {
     if (["PLACED", "ACCEPTED", "LIVE"].includes(status)) return "Open";
