@@ -395,6 +395,10 @@ button.sports-register{border:0;cursor:pointer;font:inherit}
 .bonus-popup small{display:block;color:#9fb3a6;font-size:11px;line-height:1.5;margin-bottom:20px}
 .bonus-popup button{border:0;width:100%;background:#16a34a;color:#fff;font-weight:900;font-size:13px;padding:13px;border-radius:10px;cursor:pointer}
 @keyframes bonus-pop{from{opacity:0;transform:scale(.85) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.ah-bet-summary{grid-template-columns:repeat(3,1fr) auto auto!important}
+.ah-cashout{background:#fbbf24!important;border-color:#fbbf24!important;color:#12301c!important;font-weight:900!important}
+.ah-cashout:disabled{opacity:.7}
+@media(max-width:640px){.ah-bet-summary{grid-template-columns:repeat(3,1fr)!important}.ah-bet-summary>button{grid-column:1/-1}}
 .ah-nav-balance{display:flex;align-items:center;gap:8px;margin-left:auto;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);border-radius:999px;padding:8px 14px;cursor:pointer;color:#fff;font:inherit}
 .ah-nav-balance i{font-style:normal;font-size:13px;color:#c8d8cd}
 .ah-nav-balance b{font-family:"Space Grotesk",sans-serif;font-size:12px;color:#fbbf24;white-space:nowrap}

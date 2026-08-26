@@ -15,4 +15,6 @@ export class BettingController {
   @UseGuards(JwtAuthGuard) @Post("validate") validate(@CurrentUser() user:{id:string}, @Body() dto:PlaceBetDto) { return this.betting.validate(user.id,dto); }
   @UseGuards(JwtAuthGuard) @Post("place") place(@CurrentUser() user:{id:string}, @Body() dto:PlaceBetDto) { return this.betting.place(user.id,dto); }
   @UseGuards(JwtAuthGuard) @Get("my-bets") myBets(@CurrentUser() user:{id:string}) { return this.betting.myBets(user.id); }
+  @UseGuards(JwtAuthGuard) @Get("my-bets/:id/cash-out") cashOutOffer(@CurrentUser() user:{id:string}, @Param("id") id:string) { return this.betting.getCashOutOffer(user.id,id); }
+  @UseGuards(JwtAuthGuard) @Post("my-bets/:id/cash-out") cashOut(@CurrentUser() user:{id:string}, @Param("id") id:string) { return this.betting.cashOut(user.id,id); }
 }

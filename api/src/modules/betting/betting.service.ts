@@ -5,6 +5,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BetSelectionDto, PlaceBetDto, SaveBookingDto } from "./dto/betting.dto";
 import { OperatorControlsService } from "../operator-controls/operator-controls.service";
 
+const CASH_OUT_MARGIN = 0.92;
+
 @Injectable()
 export class BettingService {
   constructor(private readonly db: PrismaService, private readonly controls: OperatorControlsService) {}
@@ -174,6 +176,46 @@ export class BettingService {
       }
       if (dto.bookingCode) await tx.bookingCode.updateMany({ where:{code:dto.bookingCode.toUpperCase(),status:"ACTIVE"}, data:{status:"USED",usedAt:new Date()} });
       return bet;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+  private async cashOutOffer(db: Prisma.TransactionClient | PrismaService, bet: { stakeTzs: number; potentialReturnTzs: number; selections: { status: SelectionStatus; odds: Prisma.Decimal; outcomeId: string }[] }) {
+    let effectiveOdds = 1;
+    for (const s of bet.selections) {
+      if (s.status === SelectionStatus.VOID) continue;
+      if (s.status === SelectionStatus.LOST) return { eligible: false as const, offerTzs: null, reason: "This ticket already has a losing leg" };
+      if (s.status === SelectionStatus.WON) { effectiveOdds *= Number(s.odds); continue; }
+      const outcome = await db.outcome.findUnique({ where: { id: s.outcomeId } });
+      if (!outcome || outcome.status !== OutcomeStatus.ACTIVE) return { eligible: false as const, offerTzs: null, reason: "Cash out is temporarily unavailable for this ticket" };
+      effectiveOdds *= Number(outcome.currentOdds);
+    }
+    const fairValue = bet.stakeTzs * effectiveOdds;
+    const offerTzs = Math.max(0, Math.min(bet.potentialReturnTzs, Math.floor(fairValue * CASH_OUT_MARGIN)));
+    if (offerTzs < 1) return { eligible: false as const, offerTzs: null, reason: "No cash-out value available for this ticket" };
+    return { eligible: true as const, offerTzs, reason: undefined };
+  }
+  async getCashOutOffer(userId: string, betId: string) {
+    const bet = await this.db.bet.findFirst({ where: { id: betId, userId }, include: { selections: true } });
+    if (!bet) throw new NotFoundException("Bet not found");
+    if (bet.status !== BetStatus.ACCEPTED && bet.status !== BetStatus.LIVE) return { eligible: false, offerTzs: null, reason: "This ticket is not open" };
+    return this.cashOutOffer(this.db, bet);
+  }
+  async cashOut(userId: string, betId: string) {
+    return this.db.$transaction(async tx => {
+      const bet = await tx.bet.findFirst({ where: { id: betId, userId }, include: { selections: true } });
+      if (!bet) throw new NotFoundException("Bet not found");
+      if (bet.status !== BetStatus.ACCEPTED && bet.status !== BetStatus.LIVE) throw new BadRequestException("This ticket is not open");
+      const offer = await this.cashOutOffer(tx, bet);
+      if (!offer.eligible) throw new BadRequestException(offer.reason ?? "Cash out is unavailable for this ticket");
+      const changed = await tx.bet.updateMany({ where: { id: bet.id, status: { in: [BetStatus.ACCEPTED, BetStatus.LIVE] } }, data: { status: BetStatus.CASHED_OUT, payoutTzs: offer.offerTzs, settledAt: new Date(), cashOutOfferTzs: null } });
+      if (changed.count !== 1) throw new BadRequestException("This ticket was already settled");
+      const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      if (wallet.lockedBalanceTzs < bet.stakeTzs) throw new BadRequestException(`Locked balance is inconsistent for ${bet.ticketCode}`);
+      await tx.wallet.update({ where: { id: wallet.id }, data: { lockedBalanceTzs: { decrement: bet.stakeTzs }, availableBalanceTzs: { increment: offer.offerTzs }, withdrawableTzs: { increment: offer.offerTzs }, version: { increment: 1 } } });
+      for (const item of bet.selections) await tx.exposure.updateMany({ where: { scope: "OUTCOME", eventId: item.externalEventId, marketId: item.marketId, outcomeId: item.outcomeId }, data: { stakeTzs: { decrement: bet.stakeTzs }, potentialPayoutTzs: { decrement: bet.potentialReturnTzs }, liabilityTzs: { decrement: Math.max(0, bet.potentialReturnTzs - bet.stakeTzs) }, ticketCount: { decrement: 1 } } });
+      await tx.walletTransaction.create({ data: { walletId: wallet.id, type: WalletTransactionType.CASH_OUT, status: "COMPLETED", amountTzs: offer.offerTzs, balanceAfterTzs: wallet.availableBalanceTzs + offer.offerTzs, reference: `CASHOUT-${bet.ticketCode}`, description: `Cash out for ${bet.ticketCode}`, completedAt: new Date(), metadata: { betId: bet.id } } });
+      await tx.betStatusHistory.create({ data: { betId: bet.id, fromStatus: bet.status, toStatus: BetStatus.CASHED_OUT, actorId: userId, reason: "User cash out", metadata: { offerTzs: offer.offerTzs } } });
+      await tx.notification.create({ data: { userId, title: "Ticket cashed out", message: `${bet.ticketCode} cashed out for TZS ${offer.offerTzs.toLocaleString()}.`, link: "/my-bets" } });
+      return { ticketCode: bet.ticketCode, status: BetStatus.CASHED_OUT, payoutTzs: offer.offerTzs };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
   async settleOutcome(actorId: string, outcomeId: string, status: SelectionStatus, result?: string) {
