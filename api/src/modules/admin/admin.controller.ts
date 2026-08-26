@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
 import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from "class-validator";
 import { BetStatus, LimitScope, Prisma, SelectionStatus, UserStatus, WalletTransactionStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -101,4 +101,18 @@ export class AdminController {
 
   @Get("users") users(@CurrentUser() user: { role: string }, @Query("q") query?: string) { this.admin(user); return this.db.user.findMany({ where: query ? { OR: [{ name: { contains: query, mode: "insensitive" } }, { phone: { contains: query } }, { email: { contains: query, mode: "insensitive" } }] } : {}, select: { id: true, name: true, phone: true, email: true, role: true, status: true, phoneVerifiedAt: true, createdAt: true, wallet: true }, orderBy: { createdAt: "desc" }, take: 100 }); }
   @Patch("users/:id/status") userStatus(@CurrentUser() user: { id: string; role: string }, @Param("id") id: string, @Body() dto: UserStatusDto) { this.admin(user); if (user.id === id) throw new BadRequestException("You cannot change your own account status"); return this.db.user.update({ where: { id }, data: { status: dto.status }, select: { id: true, name: true, phone: true, status: true } }); }
+  @Get("users/:id") async userDetail(@CurrentUser() user: { role: string }, @Param("id") id: string) {
+    this.admin(user);
+    const detail = await this.db.user.findUnique({
+      where: { id },
+      select: {
+        id: true, name: true, phone: true, email: true, role: true, status: true, phoneVerifiedAt: true, createdAt: true, lastLoginAt: true,
+        wallet: { select: { availableBalanceTzs: true, withdrawableTzs: true, bonusBalanceTzs: true, lockedBalanceTzs: true, transactions: { orderBy: { createdAt: "desc" }, take: 100 } } },
+        bets: { orderBy: { placedAt: "desc" }, take: 100, select: { id: true, ticketCode: true, bookingCode: true, status: true, stakeTzs: true, totalOdds: true, potentialReturnTzs: true, payoutTzs: true, placedAt: true, settledAt: true, selections: { select: { matchName: true, marketName: true, selection: true, odds: true, status: true } } } },
+      },
+    });
+    if (!detail) throw new NotFoundException("User not found");
+    const totals = await this.db.bet.aggregate({ where: { userId: id }, _sum: { stakeTzs: true, payoutTzs: true }, _count: true });
+    return { ...detail, totals: { betCount: totals._count, totalStakedTzs: totals._sum.stakeTzs ?? 0, totalPayoutTzs: totals._sum.payoutTzs ?? 0 } };
+  }
 }

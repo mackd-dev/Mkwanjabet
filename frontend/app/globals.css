@@ -403,6 +403,25 @@ button.sports-register{border:0;cursor:pointer;font:inherit}
 .sports-login-check span{flex:1 1 auto!important;min-width:0!important;width:auto!important;max-width:none!important;white-space:normal!important;font-size:11px!important;line-height:1.5!important;color:#5c6b62!important;margin:0!important}
 .auth-check input[type="checkbox"]{width:17px!important;height:17px!important;min-width:17px!important;max-width:17px!important;border:1px solid #b9c7bd!important;border-radius:4px!important;background:#fff!important;padding:0!important;flex:0 0 auto!important;accent-color:#16a34a}
 .auth-check span{flex:1 1 auto!important;min-width:0!important;width:auto!important;max-width:none!important;white-space:normal!important;margin:0!important}
+.admin-modal-backdrop{position:fixed;inset:0;background:rgba(4,12,7,.7);display:grid;place-items:center;z-index:200;padding:20px}
+.admin-modal{width:min(760px,100%);max-height:86vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.admin-modal>header{position:sticky;top:0;background:#fff;display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid #e2e8e4}
+.admin-modal>header h2{margin:0 0 3px;font-size:16px}
+.admin-modal>header span{font-size:11px;color:#6d7c72}
+.admin-modal>header button{border:0;background:#f0f4f1;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer}
+.admin-user-detail-body{padding:20px 22px}
+.admin-user-balances,.admin-user-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.admin-user-stats{grid-template-columns:repeat(3,1fr)}
+.admin-user-balances>div,.admin-user-stats>div{background:#f7faf8;border:1px solid #e2e8e4;border-radius:9px;padding:11px}
+.admin-user-balances small,.admin-user-stats small{font-size:8px;color:#7a8880;font-weight:900}
+.admin-user-balances b,.admin-user-stats b{display:block;margin-top:4px;font-size:14px}
+.admin-user-detail-body h3{font-size:12px;margin:20px 0 8px}
+.admin-user-bets>div{grid-template-columns:1.6fr 90px 60px 90px!important}
+.admin-user-tx>div{grid-template-columns:1.4fr 110px 80px!important}
+.admin-user-bets>div>div,.admin-user-tx>div>div{display:grid;gap:2px;min-width:0}
+.admin-user-bets small,.admin-user-tx small{color:#7a8880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-user-tx span.positive{color:#128a40;font-weight:900}
+.admin-user-tx span.negative{color:#b44b4b;font-weight:900}
 .ah-selections>.ah-selection-row{align-items:center!important}
 .ah-selection-icon{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:900;background:rgba(255,255,255,.1);color:#9fb3a6}
 .ah-selection-icon.won{background:#16a34a;color:#fff}
