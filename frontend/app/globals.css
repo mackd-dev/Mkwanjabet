@@ -386,3 +386,39 @@ button.sports-register{border:0;cursor:pointer;font:inherit}
 .sports-login-form label small{font-weight:600;color:#98a49c}
 .mc-back{border:1px solid #d5e0da;background:#f5f8f6;color:#173c27;font-size:11px;font-weight:800;padding:6px 12px;border-radius:6px;cursor:pointer;margin-right:6px;font-family:inherit;white-space:nowrap;flex:0 0 auto}
 .mc-back:hover{background:#eaf7ee;border-color:#b7c9bc}
+.ah-nav-balance{display:flex;align-items:center;gap:8px;margin-left:auto;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);border-radius:999px;padding:8px 14px;cursor:pointer;color:#fff;font:inherit}
+.ah-nav-balance i{font-style:normal;font-size:13px;color:#c8d8cd}
+.ah-nav-balance b{font-family:"Space Grotesk",sans-serif;font-size:12px;color:#fbbf24;white-space:nowrap}
+.ah-user{margin-left:16px}
+.ah-hide-toggle{display:flex;align-items:center;gap:11px;background:#141f18;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:12px 14px;margin-bottom:10px;cursor:pointer}
+.ah-hide-toggle input{position:absolute;opacity:0;width:0;height:0}
+.ah-hide-toggle i{flex:0 0 auto;width:38px;height:22px;border-radius:20px;background:#33413a;position:relative;transition:.2s}
+.ah-hide-toggle i:before{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+.ah-hide-toggle input:checked+i{background:#16a34a}
+.ah-hide-toggle input:checked+i:before{transform:translateX(16px)}
+.ah-hide-toggle span{display:grid}
+.ah-hide-toggle b{font-size:11px;color:#f2f8f4}
+.ah-hide-toggle small{font-size:9px;color:#9fb3a6}
+.ah-bet-title{display:flex;align-items:center;gap:7px}
+.ah-bet-title b{font-size:12px;color:#f2f8f4}
+.ah-bet-count{background:rgba(255,255,255,.12);color:#e9f4ed;font-size:9px;font-weight:900;border-radius:999px;padding:2px 7px}
+.ah-bet-status{font-style:normal;font-size:9px;font-weight:900;padding:5px 10px;border-radius:999px;background:#33413a;color:#dfe8e2}
+.ah-bet-status.won{background:#123b23;color:#3ddc7c}
+.ah-bet-status.lost{background:#3a1717;color:#f28a8a}
+.ah-bet-status.void{background:#3a3212;color:#f2cf6b}
+.ah-bet-status.open{background:#1f3320;color:#7ad48d}
+.ah-bet-status.cashed-out{background:#123b23;color:#3ddc7c}
+.ah-bet-meta{display:flex;gap:12px;padding:0 16px 10px;font-size:9px;color:#9fb3a6}
+.ah-bets>article.status-void{border-left-color:#eab308}
+.ah-bets>article.status-cashed-out{border-left-color:#16a34a}
+@media(max-width:900px){.ah-nav-balance{margin-left:14px;padding:7px 11px}.ah-nav-balance b{font-size:10px}.ah-user{display:none}}
+.mobile-filter-row{display:none}
+@media(max-width:900px){
+.mobile-filter-row{display:flex;gap:7px;align-items:center;padding:0 10px 10px;overflow-x:auto}
+.mobile-filter-pill{position:relative;display:flex;align-items:center;gap:6px;background:#1f2d25;border:1px solid #3d4c42;border-radius:999px;padding:9px 12px;flex:0 0 auto;white-space:nowrap}
+.mobile-filter-pill span{font-size:11px;font-weight:800;color:#e7eee9}
+.mobile-filter-pill select{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.mobile-filter-pill i{font-style:normal;font-size:9px;color:#9fb3a6}
+.mobile-filter-pill.static{cursor:default}
+.mobile-filter-sort{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:1px solid #3d4c42;background:#1f2d25;color:#e7eee9;font-size:13px}
+}
