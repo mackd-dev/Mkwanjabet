@@ -179,16 +179,21 @@ export class BettingService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
   private async cashOutOffer(db: Prisma.TransactionClient | PrismaService, bet: { stakeTzs: number; potentialReturnTzs: number; selections: { status: SelectionStatus; odds: Prisma.Decimal; outcomeId: string }[] }) {
-    let effectiveOdds = 1;
+    // fairValue tracks stake x (locked odds already won) x (lockedOdds/currentOdds for each leg still pending).
+    // Unchanged odds on a pending leg must yield a ratio of 1 (roughly stake back), not the leg's raw odds -
+    // multiplying by raw current odds here previously let a bet be cashed out for ~potentialReturn seconds
+    // after being placed, with zero risk, whenever the market hadn't moved yet.
+    let fairValue = bet.stakeTzs;
     for (const s of bet.selections) {
       if (s.status === SelectionStatus.VOID) continue;
       if (s.status === SelectionStatus.LOST) return { eligible: false as const, offerTzs: null, reason: "This ticket already has a losing leg" };
-      if (s.status === SelectionStatus.WON) { effectiveOdds *= Number(s.odds); continue; }
+      if (s.status === SelectionStatus.WON) { fairValue *= Number(s.odds); continue; }
       const outcome = await db.outcome.findUnique({ where: { id: s.outcomeId } });
       if (!outcome || outcome.status !== OutcomeStatus.ACTIVE) return { eligible: false as const, offerTzs: null, reason: "Cash out is temporarily unavailable for this ticket" };
-      effectiveOdds *= Number(outcome.currentOdds);
+      const currentOdds = Number(outcome.currentOdds);
+      if (!(currentOdds > 0)) return { eligible: false as const, offerTzs: null, reason: "Cash out is temporarily unavailable for this ticket" };
+      fairValue *= Number(s.odds) / currentOdds;
     }
-    const fairValue = bet.stakeTzs * effectiveOdds;
     const offerTzs = Math.max(0, Math.min(bet.potentialReturnTzs, Math.floor(fairValue * CASH_OUT_MARGIN)));
     if (offerTzs < 1) return { eligible: false as const, offerTzs: null, reason: "No cash-out value available for this ticket" };
     return { eligible: true as const, offerTzs, reason: undefined };
