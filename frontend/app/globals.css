@@ -409,6 +409,15 @@ button.sports-register{border:0;cursor:pointer;font:inherit}
 .ah-bet-status.open{background:#1f3320;color:#7ad48d}
 .ah-bet-status.cashed-out{background:#123b23;color:#3ddc7c}
 .ah-bet-meta{display:flex;gap:12px;padding:0 16px 10px;font-size:9px;color:#9fb3a6}
+.ah-selections>.ah-selection-row{display:flex!important;grid-template-columns:none!important;align-items:center!important;justify-content:space-between;gap:14px;padding:12px 0!important;border-bottom:1px solid rgba(255,255,255,.06)}
+.ah-selections>.ah-selection-row:last-child{border-bottom:0}
+.ah-selection-info{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ah-selection-info b{font-size:12px;color:#f2f8f4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ah-selection-info small{font-size:10px;color:#9fb3a6}
+.ah-selection-odds{flex:0 0 auto;font-size:13px;color:#dfe8e2}
+.ah-selection-odds.won{color:#3ddc7c}
+.ah-selection-odds.lost{color:#f28a8a}
+.ah-selection-odds.void{color:#f2cf6b}
 .ah-bets>article.status-void{border-left-color:#eab308}
 .ah-bets>article.status-cashed-out{border-left-color:#16a34a}
 @media(max-width:900px){.ah-nav-balance{margin-left:14px;padding:7px 11px}.ah-nav-balance b{font-size:10px}.ah-user{display:none}}
