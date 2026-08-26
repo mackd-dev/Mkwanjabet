@@ -424,4 +424,4 @@ button.sports-register{border:0;cursor:pointer;font:inherit}
 }
 .ah-selections>.ah-ticket-note{display:block!important;background:#101a14!important;border:1px solid rgba(255,255,255,.1)!important;border-radius:7px;padding:12px!important;margin:0 0 10px!important}
 .ah-selections>.ah-ticket-note b{display:block;font-size:11px;color:#f2f8f4!important;margin-bottom:3px}
-.ah-selections>.ah-ticket-note span{display:block;font-size:10px;color:#9fb3a6!important;line-height:1.4}
+.ah-selections>.ah-ticket-note span{display:block!important;width:auto!important;height:auto!important;border-radius:0!important;background:transparent!important;place-items:normal!important;font-size:10px;color:#9fb3a6!important;line-height:1.4}
