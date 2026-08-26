@@ -48,11 +48,12 @@ export default function AuthModal({ open, mode, onModeChange, onClose, onSuccess
       const body = mode === "login"
         ? { identifier, password }
         : { name: `${firstName} ${lastName}`.trim(), phone: identifier, ...(email ? { email: email.trim().toLowerCase() } : {}), password };
-      const session = await apiRequest<{ user: SessionUser; accessToken: string; refreshToken: string }>(mode === "login" ? "/auth/login" : "/auth/register", {
+      const session = await apiRequest<{ user: SessionUser; accessToken: string; refreshToken: string; signupBonusTzs?: number }>(mode === "login" ? "/auth/login" : "/auth/register", {
         method: "POST",
         body: JSON.stringify(body),
       });
       saveSession(session);
+      if (session.signupBonusTzs) localStorage.setItem("mkwanjabet_signup_bonus", String(session.signupBonusTzs));
       onSuccess(session.user);
     } catch (caught) {
       setError(caught instanceof ApiError && caught.payload && typeof caught.payload === "object" && typeof (caught.payload as { message?: unknown }).message === "string"

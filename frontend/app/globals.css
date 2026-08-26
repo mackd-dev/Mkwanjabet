@@ -386,6 +386,15 @@ button.sports-register{border:0;cursor:pointer;font:inherit}
 .sports-login-form label small{font-weight:600;color:#98a49c}
 .mc-back{border:1px solid #d5e0da;background:#f5f8f6;color:#173c27;font-size:11px;font-weight:800;padding:6px 12px;border-radius:6px;cursor:pointer;margin-right:6px;font-family:inherit;white-space:nowrap;flex:0 0 auto}
 .mc-back:hover{background:#eaf7ee;border-color:#b7c9bc}
+.bonus-popup-backdrop{position:fixed;inset:0;background:rgba(4,12,7,.72);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:200;padding:20px}
+.bonus-popup{width:min(360px,100%);text-align:center;padding:38px 28px 30px;border-radius:22px;background:linear-gradient(160deg,#0f3a20,#0b2417 65%);border:1px solid rgba(251,191,36,.4);box-shadow:0 30px 80px rgba(0,0,0,.45);animation:bonus-pop .35s cubic-bezier(.2,1.4,.4,1)}
+.bonus-popup-icon{font-size:44px;display:block;margin-bottom:6px}
+.bonus-popup h2{font-family:"Space Grotesk",sans-serif;font-size:26px;color:#fff;margin:6px 0 2px}
+.bonus-popup p{margin:0;color:#bcd0c3;font-size:13px}
+.bonus-popup strong{display:block;font-family:"Space Grotesk",sans-serif;font-size:34px;color:#fbbf24;margin:8px 0 14px}
+.bonus-popup small{display:block;color:#9fb3a6;font-size:11px;line-height:1.5;margin-bottom:20px}
+.bonus-popup button{border:0;width:100%;background:#16a34a;color:#fff;font-weight:900;font-size:13px;padding:13px;border-radius:10px;cursor:pointer}
+@keyframes bonus-pop{from{opacity:0;transform:scale(.85) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .ah-nav-balance{display:flex;align-items:center;gap:8px;margin-left:auto;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);border-radius:999px;padding:8px 14px;cursor:pointer;color:#fff;font:inherit}
 .ah-nav-balance i{font-style:normal;font-size:13px;color:#c8d8cd}
 .ah-nav-balance b{font-family:"Space Grotesk",sans-serif;font-size:12px;color:#fbbf24;white-space:nowrap}

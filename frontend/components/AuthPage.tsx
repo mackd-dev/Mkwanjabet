@@ -20,6 +20,7 @@ type LoginResponse = {
   };
   accessToken: string;
   refreshToken: string;
+  signupBonusTzs?: number;
 };
 
 const content = {
@@ -89,6 +90,7 @@ export default function AuthPage({ mode }: Props) {
             : { name: `${firstName} ${lastName}`.trim(), phone, ...(email ? { email } : {}), password }),
         });
         saveSession(session);
+        if (session.signupBonusTzs) localStorage.setItem("mkwanjabet_signup_bonus", String(session.signupBonusTzs));
         setSubmitted(true);
         const requested = new URLSearchParams(window.location.search).get("next");
         router.push(requested?.startsWith("/") ? requested : "/sports");
