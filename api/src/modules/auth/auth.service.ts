@@ -4,6 +4,7 @@ import { compare, hash } from "bcryptjs"; import { createHash } from "crypto";
 import { WalletTransactionType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service"; import { LoginDto, RegisterDto } from "./dto";
 const SIGNUP_BONUS_TZS=20000;
+const BONUS_WAGERING_MULTIPLIER=5;
 @Injectable() export class AuthService {
  constructor(private db:PrismaService,private jwt:JwtService,private config:ConfigService){}
  private safeUser(u:any){ const {passwordHash,...safe}=u; return safe; }
@@ -17,7 +18,7 @@ const SIGNUP_BONUS_TZS=20000;
  async register(d:RegisterDto,meta?:{userAgent?:string;ipAddress?:string}){
   const exists=await this.db.user.findFirst({where:{OR:[{phone:d.phone},...(d.email?[{email:d.email}]:[])]}}); if(exists) throw new ConflictException("Phone or email already exists");
   const user=await this.db.user.create({data:{name:d.name,phone:d.phone,email:d.email,passwordHash:await hash(d.password,12)}});
-  const wallet=await this.db.wallet.create({data:{userId:user.id,availableBalanceTzs:SIGNUP_BONUS_TZS,bonusBalanceTzs:SIGNUP_BONUS_TZS}});
+  const wallet=await this.db.wallet.create({data:{userId:user.id,availableBalanceTzs:SIGNUP_BONUS_TZS,bonusBalanceTzs:SIGNUP_BONUS_TZS,bonusWageringRequiredTzs:SIGNUP_BONUS_TZS*BONUS_WAGERING_MULTIPLIER}});
   await this.db.walletTransaction.create({data:{walletId:wallet.id,type:WalletTransactionType.BONUS_CREDIT,status:"COMPLETED",amountTzs:SIGNUP_BONUS_TZS,balanceAfterTzs:SIGNUP_BONUS_TZS,reference:`SIGNUP-BONUS-${user.id}`,description:"Welcome bonus for a new account",completedAt:new Date()}});
   return {...(await this.issue(user,meta)),signupBonusTzs:SIGNUP_BONUS_TZS};
  }

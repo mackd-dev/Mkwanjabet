@@ -1,0 +1,3 @@
+ALTER TABLE "Wallet" ADD COLUMN "bonusWageringRequiredTzs" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Wallet" ADD COLUMN "bonusWageringProgressTzs" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Wallet" ADD COLUMN "bonusLockedWinningsTzs" INTEGER NOT NULL DEFAULT 0;

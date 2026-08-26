@@ -164,6 +164,11 @@ export class BettingService {
       const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
       const locked = await tx.wallet.updateMany({ where: { id: wallet.id, version: wallet.version, availableBalanceTzs: { gte: dto.stakeTzs } }, data: { availableBalanceTzs: { decrement: dto.stakeTzs }, lockedBalanceTzs: { increment: dto.stakeTzs }, version: { increment: 1 } } });
       if (locked.count !== 1) throw new BadRequestException("Wallet balance changed. Please try again");
+      if (wallet.bonusWageringRequiredTzs > wallet.bonusWageringProgressTzs) {
+        const newProgress = Math.min(wallet.bonusWageringRequiredTzs, wallet.bonusWageringProgressTzs + dto.stakeTzs);
+        const requirementJustMet = newProgress >= wallet.bonusWageringRequiredTzs;
+        await tx.wallet.update({ where: { id: wallet.id }, data: { bonusWageringProgressTzs: newProgress, ...(requirementJustMet ? { withdrawableTzs: { increment: wallet.bonusLockedWinningsTzs }, bonusLockedWinningsTzs: 0 } : {}) } });
+      }
       const bet = await tx.bet.create({ data: {
         userId, ticketCode: this.ticketCode(), bookingCode: dto.bookingCode?.toUpperCase(), status: BetStatus.ACCEPTED,
         stakeTzs: dto.stakeTzs, totalOdds: validation.totalOdds, potentialReturnTzs: validation.potentialReturnTzs, acceptedAt: new Date(),
@@ -177,6 +182,13 @@ export class BettingService {
       if (dto.bookingCode) await tx.bookingCode.updateMany({ where:{code:dto.bookingCode.toUpperCase(),status:"ACTIVE"}, data:{status:"USED",usedAt:new Date()} });
       return bet;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+  // Winnings from a stake placed before the signup bonus's wagering requirement is met stay
+  // spendable (availableBalanceTzs) but are held out of withdrawableTzs until the requirement
+  // clears - otherwise a bonus-funded bet's payout is just as withdrawable as a cash deposit's.
+  private payoutSplit(wallet: { bonusWageringRequiredTzs: number; bonusWageringProgressTzs: number }, payoutTzs: number) {
+    const met = wallet.bonusWageringRequiredTzs <= 0 || wallet.bonusWageringProgressTzs >= wallet.bonusWageringRequiredTzs;
+    return met ? { withdrawableTzs: payoutTzs, bonusLockedWinningsTzs: 0 } : { withdrawableTzs: 0, bonusLockedWinningsTzs: payoutTzs };
   }
   private async cashOutOffer(db: Prisma.TransactionClient | PrismaService, bet: { stakeTzs: number; potentialReturnTzs: number; selections: { status: SelectionStatus; odds: Prisma.Decimal; outcomeId: string }[] }) {
     // fairValue tracks stake x (locked odds already won) x (lockedOdds/currentOdds for each leg still pending).
@@ -215,7 +227,8 @@ export class BettingService {
       if (changed.count !== 1) throw new BadRequestException("This ticket was already settled");
       const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
       if (wallet.lockedBalanceTzs < bet.stakeTzs) throw new BadRequestException(`Locked balance is inconsistent for ${bet.ticketCode}`);
-      await tx.wallet.update({ where: { id: wallet.id }, data: { lockedBalanceTzs: { decrement: bet.stakeTzs }, availableBalanceTzs: { increment: offer.offerTzs }, withdrawableTzs: { increment: offer.offerTzs }, version: { increment: 1 } } });
+      const split = this.payoutSplit(wallet, offer.offerTzs);
+      await tx.wallet.update({ where: { id: wallet.id }, data: { lockedBalanceTzs: { decrement: bet.stakeTzs }, availableBalanceTzs: { increment: offer.offerTzs }, withdrawableTzs: { increment: split.withdrawableTzs }, bonusLockedWinningsTzs: { increment: split.bonusLockedWinningsTzs }, version: { increment: 1 } } });
       for (const item of bet.selections) await tx.exposure.updateMany({ where: { scope: "OUTCOME", eventId: item.externalEventId, marketId: item.marketId, outcomeId: item.outcomeId }, data: { stakeTzs: { decrement: bet.stakeTzs }, potentialPayoutTzs: { decrement: bet.potentialReturnTzs }, liabilityTzs: { decrement: Math.max(0, bet.potentialReturnTzs - bet.stakeTzs) }, ticketCount: { decrement: 1 } } });
       await tx.walletTransaction.create({ data: { walletId: wallet.id, type: WalletTransactionType.CASH_OUT, status: "COMPLETED", amountTzs: offer.offerTzs, balanceAfterTzs: wallet.availableBalanceTzs + offer.offerTzs, reference: `CASHOUT-${bet.ticketCode}`, description: `Cash out for ${bet.ticketCode}`, completedAt: new Date(), metadata: { betId: bet.id } } });
       await tx.betStatusHistory.create({ data: { betId: bet.id, fromStatus: bet.status, toStatus: BetStatus.CASHED_OUT, actorId: userId, reason: "User cash out", metadata: { offerTzs: offer.offerTzs } } });
@@ -246,7 +259,8 @@ export class BettingService {
         if (changed.count !== 1) continue;
         const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId: bet.userId } });
         if (wallet.lockedBalanceTzs < bet.stakeTzs) throw new BadRequestException(`Locked balance is inconsistent for ${bet.ticketCode}`);
-        await tx.wallet.update({ where: { id: wallet.id }, data: { lockedBalanceTzs: { decrement: bet.stakeTzs }, availableBalanceTzs: { increment: payoutTzs }, withdrawableTzs: { increment: payoutTzs }, version: { increment: 1 } } });
+        const split = this.payoutSplit(wallet, payoutTzs);
+        await tx.wallet.update({ where: { id: wallet.id }, data: { lockedBalanceTzs: { decrement: bet.stakeTzs }, availableBalanceTzs: { increment: payoutTzs }, withdrawableTzs: { increment: split.withdrawableTzs }, bonusLockedWinningsTzs: { increment: split.bonusLockedWinningsTzs }, version: { increment: 1 } } });
         for (const item of bet.selections) await tx.exposure.updateMany({ where: { scope: "OUTCOME", eventId: item.externalEventId, marketId: item.marketId, outcomeId: item.outcomeId }, data: { stakeTzs: { decrement: bet.stakeTzs }, potentialPayoutTzs: { decrement: bet.potentialReturnTzs }, liabilityTzs: { decrement: Math.max(0, bet.potentialReturnTzs - bet.stakeTzs) }, ticketCount: { decrement: 1 } } });
         if (payoutTzs > 0) await tx.walletTransaction.create({ data: { walletId: wallet.id, type: allVoid ? WalletTransactionType.BET_REFUND : WalletTransactionType.BET_WIN, status: "COMPLETED", amountTzs: payoutTzs, balanceAfterTzs: wallet.availableBalanceTzs + payoutTzs, reference: `${allVoid ? "REFUND" : "WIN"}-${bet.ticketCode}`, description: `${allVoid ? "Stake refund" : "Winnings"} for ${bet.ticketCode}`, completedAt: new Date(), metadata: { betId: bet.id, outcomeId } } });
         await tx.betStatusHistory.create({ data: { betId: bet.id, fromStatus: bet.status, toStatus: finalStatus, actorId, reason: `Outcome ${outcomeId} settled as ${status}`, metadata: { outcomeId, result, payoutTzs } } });

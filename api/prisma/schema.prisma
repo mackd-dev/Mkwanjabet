@@ -625,6 +625,9 @@ model Wallet {
   withdrawableTzs     Int                 @default(0)
   bonusBalanceTzs     Int                 @default(0)
   lockedBalanceTzs    Int                 @default(0)
+  bonusWageringRequiredTzs Int            @default(0)
+  bonusWageringProgressTzs Int            @default(0)
+  bonusLockedWinningsTzs   Int            @default(0)
   version             Int                 @default(0)
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions        WalletTransaction[]
