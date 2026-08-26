@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { BetStatus, LimitScope, Prisma, SelectionStatus, WalletTransactionType } from "@prisma/client";
+import { BetStatus, LimitScope, MarketStatus, OutcomeStatus, Prisma, SelectionStatus, WalletTransactionType } from "@prisma/client";
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BetSelectionDto, PlaceBetDto, SaveBookingDto } from "./dto/betting.dto";
@@ -208,6 +208,22 @@ export class BettingService {
       }
       return { outcomeId, selectionStatus: status, selectionsUpdated: affected.length, betsSettled: settled };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+  async settleMarket(actorId: string, marketId: string, opts: { winningOutcomeId?: string; void?: boolean; result?: string }) {
+    if (!opts.void && !opts.winningOutcomeId) throw new BadRequestException("Choose a winning outcome or void the market");
+    const market = await this.db.market.findUniqueOrThrow({ where: { id: marketId }, include: { outcomes: true } });
+    if (market.status === MarketStatus.SETTLED || market.status === MarketStatus.VOID) throw new BadRequestException("Market is already finalized");
+    if (opts.winningOutcomeId && !market.outcomes.some(x => x.id === opts.winningOutcomeId)) throw new BadRequestException("Winning outcome does not belong to this market");
+    const results = [];
+    for (const outcome of market.outcomes) {
+      const status = opts.void ? SelectionStatus.VOID : outcome.id === opts.winningOutcomeId ? SelectionStatus.WON : SelectionStatus.LOST;
+      results.push(await this.settleOutcome(actorId, outcome.id, status, opts.result));
+    }
+    await this.db.$transaction([
+      ...market.outcomes.map(outcome => this.db.outcome.update({ where: { id: outcome.id }, data: { status: opts.void ? OutcomeStatus.VOID : outcome.id === opts.winningOutcomeId ? OutcomeStatus.WON : OutcomeStatus.LOST, settledAt: new Date() } })),
+      this.db.market.update({ where: { id: marketId }, data: { status: opts.void ? MarketStatus.VOID : MarketStatus.SETTLED } }),
+    ]);
+    return { marketId, status: opts.void ? MarketStatus.VOID : MarketStatus.SETTLED, results };
   }
 }
 

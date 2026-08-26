@@ -1,5 +1,5 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
-import { EventStatus, MarketStatus, OutcomeStatus, Prisma, SelectionStatus } from "@prisma/client";
+import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import { EventStatus, MarketStatus, OutcomeStatus, Prisma } from "@prisma/client";
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -111,19 +111,6 @@ export class AdminSportsbookController {
   @Post("markets/:id/settle")
   async settleMarket(@CurrentUser() user: { id: string; role: string }, @Param("id") id: string, @Body() dto: SettleMarketDto) {
     this.admin(user);
-    if (!dto.void && !dto.winningOutcomeId) throw new BadRequestException("Choose a winning outcome or void the market");
-    const market = await this.db.market.findUniqueOrThrow({ where: { id }, include: { outcomes: true } });
-    if (market.status === MarketStatus.SETTLED || market.status === MarketStatus.VOID) throw new BadRequestException("Market is already finalized");
-    if (dto.winningOutcomeId && !market.outcomes.some(x => x.id === dto.winningOutcomeId)) throw new BadRequestException("Winning outcome does not belong to this market");
-    const results = [];
-    for (const outcome of market.outcomes) {
-      const status = dto.void ? SelectionStatus.VOID : outcome.id === dto.winningOutcomeId ? SelectionStatus.WON : SelectionStatus.LOST;
-      results.push(await this.betting.settleOutcome(user.id, outcome.id, status, dto.result));
-    }
-    await this.db.$transaction([
-      ...market.outcomes.map(outcome => this.db.outcome.update({ where: { id: outcome.id }, data: { status: dto.void ? OutcomeStatus.VOID : outcome.id === dto.winningOutcomeId ? OutcomeStatus.WON : OutcomeStatus.LOST, settledAt: new Date() } })),
-      this.db.market.update({ where: { id }, data: { status: dto.void ? MarketStatus.VOID : MarketStatus.SETTLED } }),
-    ]);
-    return { marketId: id, status: dto.void ? MarketStatus.VOID : MarketStatus.SETTLED, results };
+    return this.betting.settleMarket(user.id, id, { winningOutcomeId: dto.winningOutcomeId, void: dto.void, result: dto.result });
   }
 }

@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableEx
 import { ConfigService } from "@nestjs/config";
 import { EventStatus, MarketStatus, OutcomeStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { BettingService } from "../betting/betting.service";
 
 type OddsApiOutcome = { name: string; price: number; point?: number; description?: string };
 type OddsApiMarket = { key: string; outcomes: OddsApiOutcome[] };
@@ -16,6 +17,10 @@ type FeedStatus = {
 };
 type DbOutcome = { key: string; name: string; price: number };
 type DbMarket = { key: string; line: number | null; name: string; outcomes: DbOutcome[]; bookmakerKey?: string };
+type OddsApiScore = {
+  id: string; sport_key: string; commence_time: string; completed: boolean;
+  home_team: string; away_team: string; scores: { name: string; score: string }[] | null;
+};
 
 const DEFAULT_SPORT_KEYS = [
   "soccer_epl", "soccer_efl_champ", "soccer_uefa_champs_league", "soccer_spain_la_liga", "soccer_italy_serie_a",
@@ -39,7 +44,7 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
     lastError: null, lastMatched: 0, lastSkipped: 0, requestsRemaining: null, requestsUsed: null,
   };
 
-  constructor(private readonly db: PrismaService, private readonly config: ConfigService) {
+  constructor(private readonly db: PrismaService, private readonly config: ConfigService, private readonly betting: BettingService) {
     this.state.configured = Boolean(this.apiKey());
   }
 
@@ -86,6 +91,7 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
       }
       await this.promoteLiveEvents();
       await this.expireStaleEvents();
+      await this.settleFinishedEvents();
       this.state.lastMatched = matched;
       this.state.lastSkipped = skipped;
       this.state.lastCompletedAt = new Date().toISOString();
@@ -224,6 +230,65 @@ export class OddsApiFeedService implements OnModuleInit, OnModuleDestroy {
       this.db.event.updateMany({ where: { id: { in: ids } }, data: { status: EventStatus.FINISHED, liveClock: null } }),
       this.db.market.updateMany({ where: { eventId: { in: ids }, status: MarketStatus.OPEN }, data: { status: MarketStatus.SUSPENDED, suspendedAt: new Date(), suspensionReason: "Event start time has passed" } }),
     ]);
+  }
+
+  private async settleFinishedEvents() {
+    for (const sportKey of this.sportKeys()) {
+      let scores: OddsApiScore[] | null = null;
+      try {
+        const baseUrl = this.config.get<string>("ODDS_API_BASE_URL") ?? "https://api.the-odds-api.com";
+        const params = new URLSearchParams({ apiKey: this.apiKey(), daysFrom: "3" });
+        const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v4/sports/${sportKey}/scores/?${params}`, { signal: AbortSignal.timeout(15_000) });
+        this.readQuota(response.headers);
+        if (!response.ok) continue;
+        scores = await response.json().catch(() => null) as OddsApiScore[] | null;
+      } catch (error) {
+        this.logger.warn(`Scores fetch failed for ${sportKey}: ${error instanceof Error ? error.message : error}`);
+        continue;
+      }
+      if (!Array.isArray(scores)) continue;
+      for (const result of scores) {
+        if (!result.completed || !result.scores?.length) continue;
+        await this.settleFromScore(result).catch(error =>
+          this.logger.warn(`Auto-settlement failed for ${result.home_team} vs ${result.away_team}: ${error instanceof Error ? error.message : error}`));
+      }
+    }
+  }
+
+  private async settleFromScore(result: OddsApiScore) {
+    const homeKey = teamKey(result.home_team);
+    const awayKey = teamKey(result.away_team);
+    if (!homeKey || !awayKey) return;
+    const commenceAt = new Date(result.commence_time);
+    const windowStart = new Date(commenceAt.getTime() - 36 * 60 * 60_000);
+    const windowEnd = new Date(commenceAt.getTime() + 36 * 60 * 60_000);
+    const candidates = await this.db.event.findMany({
+      where: { startsAt: { gte: windowStart, lte: windowEnd } },
+      select: { id: true, homeTeamName: true, awayTeamName: true },
+    });
+    const matched = candidates.find(candidate =>
+      teamKey(candidate.homeTeamName ?? "") === homeKey && teamKey(candidate.awayTeamName ?? "") === awayKey);
+    if (!matched) return;
+
+    const homeScore = Number(result.scores?.find(s => teamKey(s.name) === homeKey)?.score);
+    const awayScore = Number(result.scores?.find(s => teamKey(s.name) === awayKey)?.score);
+    if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) return;
+
+    const market = await this.db.market.findFirst({
+      where: { eventId: matched.id, key: "match-winner", status: { in: [MarketStatus.OPEN, MarketStatus.SUSPENDED] } },
+      include: { outcomes: true },
+    });
+    if (!market) return;
+
+    const winningKey = homeScore > awayScore ? "home" : awayScore > homeScore ? "away" : "draw";
+    const winningOutcome = market.outcomes.find(o => o.key === winningKey);
+    if (!winningOutcome) return;
+
+    await this.betting.settleMarket("system:odds-api-scores", market.id, {
+      winningOutcomeId: winningOutcome.id,
+      result: `${result.home_team} ${homeScore} - ${awayScore} ${result.away_team}`,
+    });
+    await this.db.event.updateMany({ where: { id: matched.id, status: { not: EventStatus.FINISHED } }, data: { status: EventStatus.FINISHED } });
   }
 
   private sportKeys() {
