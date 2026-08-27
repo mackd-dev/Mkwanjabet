@@ -29,7 +29,7 @@ export default function AdminHub(){
  useEffect(()=>{load().catch(()=>router.replace("/login?next=/admin"))},[router]);
  async function act(run:()=>Promise<unknown>,success:string){setBusy(true);setError("");try{await run();setNotice(success);await load()}catch(e){setError(message(e))}finally{setBusy(false)}}
  const saveSettings=()=>act(()=>authenticatedApiRequest("/admin/risk/settings",{method:"PATCH",body:JSON.stringify(settings)}),"Platform controls updated");
- const saveLimit=()=>act(()=>authenticatedApiRequest("/admin/risk/limits",{method:"POST",body:JSON.stringify({...limit,maximumOdds:Number(limit.maximumOdds)})}),"Betting limit updated");
+ const saveLimit=()=>{const{id:_id,...body}=limit;return act(()=>authenticatedApiRequest("/admin/risk/limits",{method:"POST",body:JSON.stringify({...body,maximumOdds:Number(limit.maximumOdds)})}),"Betting limit updated")};
  const withdrawalAction=(id:string,action:"approve"|"complete"|"reject")=>act(()=>authenticatedApiRequest(`/admin/risk/withdrawals/${id}/${action}`,{method:"PATCH"}),`Withdrawal ${{approve:"approved",complete:"completed",reject:"rejected"}[action]}`);
  const userStatus=(id:string,status:"ACTIVE"|"SUSPENDED")=>act(()=>authenticatedApiRequest(`/admin/risk/users/${id}/status`,{method:"PATCH",body:JSON.stringify({status})}),`User ${status.toLowerCase()}`);
  async function findUsers(){setBusy(true);try{setUsers(await authenticatedApiRequest<AdminUser[]>(`/admin/risk/users?q=${encodeURIComponent(search)}`))}finally{setBusy(false)}}
