@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config"; import { JwtService } from "@nes
 import { compare, hash } from "bcryptjs"; import { createHash } from "crypto";
 import { WalletTransactionType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service"; import { LoginDto, RegisterDto } from "./dto";
-const SIGNUP_BONUS_TZS=20000;
+const SIGNUP_BONUS_TZS=10000;
 const BONUS_WAGERING_MULTIPLIER=5;
 @Injectable() export class AuthService {
  constructor(private db:PrismaService,private jwt:JwtService,private config:ConfigService){}

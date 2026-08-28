@@ -185,7 +185,7 @@ export default function SportsHub({initialTab="prematch"}:{initialTab?:"prematch
 
   useEffect(()=>{
     const stored=localStorage.getItem("mkwanjabet_signup_bonus");
-    if(stored){localStorage.removeItem("mkwanjabet_signup_bonus");setBonusPopup(Number(stored)||20000)}
+    if(stored){localStorage.removeItem("mkwanjabet_signup_bonus");setBonusPopup(Number(stored)||10000)}
   },[]);
 
   useEffect(()=>{
